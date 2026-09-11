@@ -14,10 +14,22 @@ Built on [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-2.0).
 ## Install
 
 ```sh
-git clone <this-repo> ~/kokoro-voice
+git clone https://github.com/<you>/kokoro-voice ~/kokoro-voice
 ~/kokoro-voice/install.sh
-/plugin marketplace add ~/kokoro-voice     # then: /plugin install kokoro-voice
 ```
+
+Then, in Claude Code:
+
+```
+/plugin marketplace add <you>/kokoro-voice
+/plugin install kokoro-voice
+```
+
+The installer builds the speech engine; the plugin wires up the skills, the
+commands and the hook. Both steps are needed - the plugin alone has no voice,
+and the installer alone has no skills.
+
+Costs about 580 tokens of always-on context per session.
 
 The installer builds an isolated Python environment in `~/.kokoro`, installs
 `espeak-ng` through Homebrew, and links `kokoro` and `hush` into `~/.local/bin`.
