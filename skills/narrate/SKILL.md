@@ -14,10 +14,10 @@ Speak a beat with `--bg`, which queues it and returns in about thirty
 milliseconds. It never blocks, and beats always play in the order you sent them:
 
 ```bash
-speak --bg --title "what you are working on" "Reading the movement script."
+kokoro --bg --title "what you are working on" "Reading the movement script."
 ```
 
-**Never use plain `speak` for a beat.** That waits for playback and would stall
+**Never use plain `kokoro` for a beat.** That waits for playback and would stall
 the work. `--bg` only.
 
 ### What a beat sounds like
@@ -80,7 +80,7 @@ describes - written for the ear, roughly 100 to 180 words - but send it with
 cat > /tmp/speak.txt <<'EOF'
 <the spoken summary>
 EOF
-speak --bg < /tmp/speak.txt
+kokoro --bg < /tmp/speak.txt
 ```
 
 It is queued behind the beats, so it plays last no matter when you send it.
@@ -97,5 +97,5 @@ in full. A normal, useful chat response is right; a duplicated summary is not.
 
 ## Stopping
 
-`speak --hush` drops anything queued and stops playback immediately.
+`kokoro --hush` drops anything queued and stops playback immediately.
 Use it the moment the user says stop, be quiet, or shut up.

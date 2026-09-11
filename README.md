@@ -20,7 +20,7 @@ git clone <this-repo> ~/kokoro-voice
 ```
 
 The installer builds an isolated Python environment in `~/.kokoro`, installs
-`espeak-ng` through Homebrew, and links `speak` and `hush` into `~/.local/bin`.
+`espeak-ng` through Homebrew, and links `kokoro` and `hush` into `~/.local/bin`.
 The first thing you speak downloads the model, about 330 MB, once.
 
 **macOS only.** Playback uses `afplay` and the floating window uses Cocoa. The
@@ -29,18 +29,18 @@ speech engine itself is portable; the plumbing around it is not.
 ## Using it
 
 Just ask. "Read me the summary", "say that out loud", "tell me out loud" — the
-`speak` skill triggers on ordinary phrasing in any project. `/speak` if you would
+`kokoro` skill triggers on ordinary phrasing in any project. `/speak` if you would
 rather be explicit.
 
 | | |
 |---|---|
 | `/narrate on` | hear short beats while work happens |
-| `speak --hud on` | floating transcript, always on top |
-| `speak --config` | every setting, and which you have changed |
-| `speak --set speed=1.3` | change one — voice, speed, hud, retention, daemon limits |
-| `speak --version` | plugin version, commit, and where code and data live |
+| `kokoro --hud on` | floating transcript, always on top |
+| `kokoro --config` | every setting, and which you have changed |
+| `kokoro --set speed=1.3` | change one — voice, speed, hud, retention, daemon limits |
+| `kokoro --version` | plugin version, commit, and where code and data live |
 | `hush` | stop it, instantly, from any terminal |
-| `speak --list` | transcripts of past summaries |
+| `kokoro --list` | transcripts of past summaries |
 
 Everything spoken is archived to `~/.kokoro/spoken/` and pruned after 180 days.
 

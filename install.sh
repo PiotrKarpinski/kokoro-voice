@@ -54,10 +54,11 @@ fi
   echo "    WARNING: this Python has no tkinter, so the floating transcript"
   echo "    window will not run. Speech still works. Fix: brew install python-tk"; }
 
-echo "==> linking speak and hush into $BIN"
+echo "==> linking kokoro and hush into $BIN"
 mkdir -p "$BIN"
-ln -sf "$HERE/bin/speak" "$BIN/speak"
-ln -sf "$HERE/bin/hush"  "$BIN/hush"
+ln -sf "$HERE/bin/kokoro" "$BIN/kokoro"
+ln -sf "$HERE/bin/hush"   "$BIN/hush"
+rm -f "$BIN/speak"   # espeak-ng ships its own `speak`; ours must not collide
 case ":$PATH:" in *":$BIN:"*) ;; *)
   echo "    NOTE: $BIN is not on your PATH. Add this to your shell profile:"
   echo "      export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
@@ -65,4 +66,4 @@ esac
 
 echo
 echo "Installed. The first thing you speak downloads the model (about 330 MB)."
-echo "Try it:   speak \"the machine is awake\""
+echo "Try it:   kokoro \"the machine is awake\""

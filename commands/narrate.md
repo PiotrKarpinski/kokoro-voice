@@ -5,8 +5,8 @@ description: Toggle spoken narration of work (on/off/status)
 Toggle narration mode. Argument (may be empty): $ARGUMENTS
 
 - **"on"**, or empty when currently off — create `~/.kokoro/.narrate`, then confirm
-  in one line. Speak a short confirmation beat too: `speak --bg "Narration on."`
-- **"off"**, or empty when currently on — run `speak --hush`, delete
+  in one line. Speak a short confirmation beat too: `kokoro --bg "Narration on."`
+- **"off"**, or empty when currently on — run `kokoro --hush`, delete
   `~/.kokoro/.narrate`, confirm in one line.
 - **"status"** — say whether `~/.kokoro/.narrate` exists, in one line.
 

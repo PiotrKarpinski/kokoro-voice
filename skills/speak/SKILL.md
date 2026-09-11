@@ -50,7 +50,7 @@ Write to a temp file and pipe it, so quoting and newlines cannot break the shell
 cat > /tmp/speak.txt <<'EOF'
 <the spoken text>
 EOF
-speak --bg < /tmp/speak.txt
+kokoro --bg < /tmp/speak.txt
 ```
 
 Pass `--title` with a short subject - three or four words naming what this is
@@ -72,14 +72,14 @@ means speaking at a speed they did not choose. Only pass it if they ask for this
 one to be faster or slower, and use `--set-speed N` if they want it changed for good.
 
 **Stopping.** If the user says stop, be quiet, that's enough, or anything else
-meaning they do not want to hear the rest, run `speak --hush` as the very
+meaning they do not want to hear the rest, run `kokoro --hush` as the very
 first thing in your reply - before answering, before explaining. It halts playback
 immediately and abandons whatever is left. Then reply normally in one short line.
 Treat a bare "stop" during speech as meaning the audio, not the work.
 It speaks sentence by sentence, so the voice starts in about two tenths of a second
 however long the text is - never pre-chunk the text yourself, just pipe it in whole.
 
-`speak --list` shows recent spoken texts; `--replay` says the last one again.
+`kokoro --list` shows recent spoken texts; `--replay` says the last one again.
 
 A warm daemon holds the model in memory, so speech normally begins in about
 a sixth of a second. The very first call after a reboot takes around six seconds
@@ -125,8 +125,8 @@ Handle it in this order, and do the pause FIRST - every second you spend thinkin
 is another sentence they have to listen past:
 
 ```bash
-speak --pause      # instant; freezes mid-word
-speak --where      # the sentence they just heard, with context
+kokoro --pause      # instant; freezes mid-word
+kokoro --where      # the sentence they just heard, with context
 ```
 
 `--where` prints the two sentences before, the current one marked `>>`, and the
@@ -137,10 +137,10 @@ Then:
 - **Answer in the chat, as text.** They asked because listening did not work the
   first time; saying it again out loud is the one thing guaranteed not to help.
   Keep it short.
-- **Then `speak --resume`** so the summary carries on from exactly where
+- **Then `kokoro --resume`** so the summary carries on from exactly where
   it froze, and say in your one line that it is running again.
 - **Unless they have moved on.** If the interruption turned into a new question or
-  a new instruction, run `speak --hush` instead and drop the rest - do
+  a new instruction, run `kokoro --hush` instead and drop the rest - do
   not resume a summary they have stopped caring about.
 
 "Say that again" is different: they want to HEAR it, not read it. Pause, then
@@ -148,7 +148,7 @@ speak just that one sentence with `--bg`, then resume.
 
 ## Letting them read along
 
-`speak --follow` prints each sentence in the terminal as it is spoken,
+`kokoro --follow` prints each sentence in the terminal as it is spoken,
 which is the answer to "I want to see it as well as hear it". Mention it if they
 say they cannot keep up. It is a separate terminal command - it does not change
 what you print in the chat.

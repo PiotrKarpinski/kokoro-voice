@@ -8,8 +8,8 @@ if [ -f "$K/.narrate" ]; then
 cat <<'TXT'
 <narration-mode>
 Narration mode is ON. Load the `narrate` skill before your first beat and follow
-it. In short: speak brief progress beats with `speak --bg "..."` as you work
-(three to eight for a normal task; never plain `speak`, which blocks), and queue a
+it. In short: speak brief progress beats with `kokoro --bg "..."` as you work
+(three to eight for a normal task; never plain `kokoro`, which blocks), and queue a
 spoken summary the same way when you finish.
 
 NEVER speak a filename, path or extension aloud - "player dot g d" is nonsense in
@@ -17,7 +17,7 @@ the ear. Name what the file DOES: "the player movement script", "the spring
 script". Same for code, commands, flags and long numbers.
 
 Keep answering in the chat as normal; this is an extra channel, not a
-replacement. If the user wants it to stop, run `speak --hush` and remove the
+replacement. If the user wants it to stop, run `kokoro --hush` and remove the
 narration flag at "$KOKORO_HOME/.narrate" (default ~/.kokoro/.narrate).
 </narration-mode>
 TXT
@@ -46,11 +46,11 @@ Their message may well be about what they are hearing - a request to slow down,
 go back, explain, or stop. It may equally be unrelated. Judge it; do not pattern
 match on particular words.
 
-If it IS about the audio: run `speak --pause` FIRST, before anything else,
+If it IS about the audio: run `kokoro --pause` FIRST, before anything else,
 because every second you think is another sentence they sit through. Then answer
 in the chat as text - they asked because listening did not work, so repeating it
-aloud will not help. Then `speak --resume` to carry on from exactly where it
-froze, or `speak --hush` to drop the rest if they have moved on. `speak --where`
+aloud will not help. Then `kokoro --resume` to carry on from exactly where it
+froze, or `kokoro --hush` to drop the rest if they have moved on. `kokoro --where`
 gives more context than the window above.
 
 If it is NOT about the audio, ignore this block entirely and let it play.

@@ -47,7 +47,7 @@ subject = tk.Label(bar, text="", bg=BG, fg=FG_PAST, font=("SF Pro Text", 11))
 subject.pack(side="left", padx=(8, 0))
 
 def say(*args):
-    subprocess.run([str(HERE/"speak"), *args], capture_output=True)
+    subprocess.run([str(HERE/"kokoro"), *args], capture_output=True)
 
 def button(glyph, cmd, fg=FG_NEXT, size=13):
     b = tk.Label(bar, text=glyph, bg=BG, fg=fg, cursor="pointinghand",
@@ -79,7 +79,7 @@ def end_drag(e):
     try: POS.write_text(json.dumps([root.winfo_x(), root.winfo_y()]))
     except OSError: pass
 def toggle(e):
-    subprocess.run([str(HERE/"speak"), "--resume" if PAUSED.exists() else "--pause"],
+    subprocess.run([str(HERE/"kokoro"), "--resume" if PAUSED.exists() else "--pause"],
                    capture_output=True)
 for w in (bar, title, txt):
     w.bind("<Button-1>", start_drag)

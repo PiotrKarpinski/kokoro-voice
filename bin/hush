@@ -7,4 +7,4 @@ while [ -L "$SELF" ]; do
      *) SELF="$(dirname "$SELF")/$LINK" ;;
   esac
 done
-exec "$(cd "$(dirname "$SELF")" && pwd)/speak" --hush
+exec "$(cd "$(dirname "$SELF")" && pwd)/kokoro" --hush
