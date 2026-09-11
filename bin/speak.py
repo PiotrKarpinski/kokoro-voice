@@ -27,6 +27,35 @@ SPEEDF    = DATA/".speed"         # persistent default speaking rate
 NOW       = DATA/".now-playing"   # what is sounding right now
 PAUSE     = DATA/".paused"
 HUDON     = DATA/".hud-on"        # transcript window follows along automatically
+CONFIG    = DATA/"config.json"    # every tunable lives here
+
+DEFAULTS = {
+    "voice":             "af_heart",
+    "speed":             1.0,
+    "hud":               False,     # floating transcript window
+    "keep_days":         180,       # transcript retention
+    "idle_exit_seconds": 900,       # daemon quits after this long unused
+    "rss_ceiling_mb":    2600,      # daemon restarts above this
+}
+
+def load_config():
+    cfg = dict(DEFAULTS)
+    try:
+        cfg.update(json.loads(CONFIG.read_text()))
+    except (OSError, ValueError):
+        pass
+    # honour the older single-value files so nothing breaks on upgrade
+    try:
+        cfg["speed"] = float((DATA/".speed").read_text().strip())
+    except (OSError, ValueError):
+        pass
+    if HUDON.exists():
+        cfg["hud"] = True
+    return cfg
+
+def save_config(cfg):
+    CONFIG.write_text(json.dumps({k: v for k, v in cfg.items()
+                                  if DEFAULTS.get(k) != v}, indent=2) + "\n")
 START     = time.time()
 
 def hushed():
@@ -35,7 +64,7 @@ def hushed():
         return HUSHF.stat().st_mtime > START
     except OSError:
         return False
-KEEP_DAYS = 180
+KEEP_DAYS = 180   # overridden by config
 SPLIT     = r"(?<=[.!?])\s+"
 
 ap = argparse.ArgumentParser()
@@ -60,20 +89,75 @@ ap.add_argument("--where", action="store_true",
 ap.add_argument("--follow", action="store_true", help="live transcript as it speaks")
 ap.add_argument("--hud", choices=["on","off"], nargs="?", const="on",
                 help="floating always-on-top transcript window")
+ap.add_argument("--title", metavar="TEXT",
+                help="what this speech is about; shown in the transcript window")
+ap.add_argument("--config", action="store_true", help="show every setting")
+ap.add_argument("--set", metavar="KEY=VALUE", action="append",
+                help="change a setting, e.g. --set speed=1.2 --set voice=am_michael")
+ap.add_argument("--version", action="store_true")
 a = ap.parse_args()
 
 ARCHIVE.mkdir(parents=True, exist_ok=True)
+CFG = load_config()
+
+if a.version:
+    try:
+        man = json.loads((HERE.parent/".claude-plugin/plugin.json").read_text())
+        line = f"{man['name']} {man['version']}"
+    except (OSError, ValueError, KeyError):
+        line = "kokoro-voice (unpackaged)"
+    rev = subprocess.run(["git","-C",str(HERE.parent),"rev-parse","--short","HEAD"],
+                         capture_output=True, text=True).stdout.strip()
+    dirty = subprocess.run(["git","-C",str(HERE.parent),"status","--porcelain"],
+                           capture_output=True, text=True).stdout.strip()
+    if rev:
+        line += f"  ({rev}{'+edits' if dirty else ''})"
+    print(line)
+    print(f"code  {HERE.parent}")
+    print(f"data  {DATA}")
+    sys.exit(0)
+
+if a.config:
+    print(f"settings in {CONFIG}\n")
+    for k in DEFAULTS:
+        v, d = CFG[k], DEFAULTS[k]
+        print(f"  {k:<18} {str(v):<12} {'(default)' if v == d else '(changed)'}")
+    print("\nchange one with:  speak --set speed=1.2")
+    sys.exit(0)
+
+if a.set:
+    for pair in a.set:
+        if "=" not in pair:
+            sys.exit(f"expected KEY=VALUE, got {pair!r}")
+        k, v = pair.split("=", 1)
+        k = k.strip()
+        if k not in DEFAULTS:
+            sys.exit(f"unknown setting {k!r}. Known: {', '.join(DEFAULTS)}")
+        d = DEFAULTS[k]
+        try:
+            CFG[k] = (v.strip().lower() in ("1","true","yes","on")) if isinstance(d, bool) \
+                     else type(d)(v)
+        except ValueError:
+            sys.exit(f"{k} expects a {type(d).__name__}")
+        print(f"{k} = {CFG[k]}")
+    save_config(CFG)
+    (DATA/".speed").unlink(missing_ok=True)      # superseded by config.json
+    HUDON.touch() if CFG["hud"] else HUDON.unlink(missing_ok=True)
+    sys.exit(0)
 
 if a.set_speed is not None:
     SPEEDF.write_text(str(a.set_speed))
     print(f"default speaking rate set to {a.set_speed}")
     sys.exit(0)
 
+# What this speech is about, shown in the transcript window. Falls back to the
+# project directory, which is usually the right answer anyway.
+TITLE = (a.title or pathlib.Path.cwd().name or "")[:60]
+
 if a.speed is None:
-    try:
-        a.speed = float(SPEEDF.read_text().strip())
-    except (OSError, ValueError):
-        a.speed = 1.0
+    a.speed = CFG["speed"]
+if not a.voice or a.voice == "af_heart":
+    a.voice = CFG["voice"]
 
 # ---------------------------------------------------------------- maintenance
 def maintain():
@@ -85,7 +169,7 @@ def maintain():
                 shutil.rmtree(d, ignore_errors=True)
         except OSError:
             pass
-    cutoff = now - KEEP_DAYS*86400
+    cutoff = now - CFG["keep_days"]*86400
     for f in ARCHIVE.glob("*.txt"):
         try:
             if f.stat().st_mtime < cutoff:
@@ -278,7 +362,7 @@ if a.bg:
         try:
             f = s.makefile("rw")
             f.write(json.dumps({"bg": 1, "text": t, "voice": a.voice,
-                                "speed": a.speed})+"\n"); f.flush()
+                                "speed": a.speed, "title": TITLE})+"\n"); f.flush()
             f.readline()
             with open(BEATS, "a") as bl:
                 bl.write(f"{datetime.datetime.now():%H:%M:%S}  {t}\n")
@@ -313,7 +397,8 @@ def via_daemon():
         return False
     try:
         f = s.makefile("rw")
-        f.write(json.dumps({"text": t, "voice": a.voice, "speed": a.speed})+"\n"); f.flush()
+        f.write(json.dumps({"text": t, "voice": a.voice, "speed": a.speed,
+                            "title": TITLE})+"\n"); f.flush()
         got = False
         for line in f:
             m = json.loads(line)

@@ -14,7 +14,7 @@ Speak a beat with `--bg`, which queues it and returns in about thirty
 milliseconds. It never blocks, and beats always play in the order you sent them:
 
 ```bash
-speak --bg "Reading the movement script."
+speak --bg --title "what you are working on" "Reading the movement script."
 ```
 
 **Never use plain `speak` for a beat.** That waits for playback and would stall

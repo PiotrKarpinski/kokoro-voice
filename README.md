@@ -36,7 +36,9 @@ rather be explicit.
 |---|---|
 | `/narrate on` | hear short beats while work happens |
 | `speak --hud on` | floating transcript, always on top |
-| `speak --set-speed 1.3` | speaking rate, saved |
+| `speak --config` | every setting, and which you have changed |
+| `speak --set speed=1.3` | change one — voice, speed, hud, retention, daemon limits |
+| `speak --version` | plugin version, commit, and where code and data live |
 | `hush` | stop it, instantly, from any terminal |
 | `speak --list` | transcripts of past summaries |
 

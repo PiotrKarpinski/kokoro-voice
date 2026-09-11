@@ -92,7 +92,8 @@ def bg_worker():
                     NOW.write_text(json.dumps({
                         "index": i, "total": len(chunks),
                         "current": sents[i] if i < len(sents) else "",
-                        "sentences": sents, "at": time.time()}))
+                        "sentences": sents, "at": time.time(),
+                        "title": job.get("title", "")}))
                 except OSError:
                     pass
                 subprocess.run(["afplay", wav], check=False)
@@ -137,7 +138,7 @@ while True:
                 f.flush(); continue
             if req.get("bg"):
                 BG.put({"text": req["text"], "voice": req.get("voice","af_heart"),
-                        "speed": req.get("speed",1.0)})
+                        "speed": req.get("speed",1.0), "title": req.get("title","")})
                 f.write(json.dumps({"queued": BG.qsize()})+"\n"); f.flush(); continue
             if req.get("drain"):          # stop narration mid-flight
                 try:

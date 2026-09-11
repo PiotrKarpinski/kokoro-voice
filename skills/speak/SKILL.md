@@ -53,6 +53,11 @@ EOF
 speak --bg < /tmp/speak.txt
 ```
 
+Pass `--title` with a short subject - three or four words naming what this is
+about ("spring economy", "CI failure", "migration plan"). It shows in the floating
+transcript window, so the user can tell at a glance which conversation is talking
+when more than one is. Without it the window falls back to the project folder name.
+
 **Always `--bg`.** It hands the text to the daemon and returns in about thirty
 milliseconds, so your turn ends straight away and the user can type while it is
 still speaking. Without it the turn stays open for the whole minute of audio and

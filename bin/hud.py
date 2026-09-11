@@ -43,6 +43,8 @@ bar.pack(fill="x", padx=10, pady=(8, 0))
 title = tk.Label(bar, text="● speaking", bg=BG, fg=ACCENT,
                  font=("SF Pro Text", 11, "bold"))
 title.pack(side="left")
+subject = tk.Label(bar, text="", bg=BG, fg=FG_PAST, font=("SF Pro Text", 11))
+subject.pack(side="left", padx=(8, 0))
 
 def say(*args):
     subprocess.run([str(HERE/"speak"), *args], capture_output=True)
@@ -109,6 +111,8 @@ def tick():
     paused = PAUSED.exists()
     title.config(text="paused" if paused else "● speaking",
                  fg=FG_PAST if paused else ACCENT)
+    subj = st.get("title", "")
+    subject.config(text=f"· {subj}" if subj else "")
     btn_play.config(text="▶" if paused else "❚❚")
 
     key = (st["index"], len(st["sentences"]), paused)
