@@ -1,2 +1,2 @@
 #!/bin/sh
-exec "$(cd "$(dirname "$0")" && pwd)/speak" --hush
+exec "$HOME/kokoro/speak" --hush

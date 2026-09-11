@@ -36,6 +36,20 @@ else
   "$K/.venv/bin/pip" install -q kokoro soundfile pyobjc-framework-Cocoa
 fi
 
+# Kokoro's phonemiser needs spaCy's small English model. If it is missing it
+# tries to fetch it AT RUNTIME by shelling out to pip/uv - which has no
+# virtualenv context inside the daemon and fails with a confusing error. Install
+# it now so that never happens.
+echo "==> spaCy English model"
+SPACY_WHL="https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
+if "$K/.venv/bin/python" -c "import en_core_web_sm" 2>/dev/null; then
+  echo "    already present"
+elif command -v uv >/dev/null 2>&1; then
+  VIRTUAL_ENV="$K/.venv" uv pip install -q "en_core_web_sm @ $SPACY_WHL"
+else
+  "$K/.venv/bin/pip" install -q "$SPACY_WHL"
+fi
+
 "$K/.venv/bin/python" -c "import tkinter" 2>/dev/null || {
   echo "    WARNING: this Python has no tkinter, so the floating transcript"
   echo "    window will not run. Speech still works. Fix: brew install python-tk"; }
