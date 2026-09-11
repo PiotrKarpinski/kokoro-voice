@@ -1,2 +1,10 @@
 #!/bin/sh
-exec "$HOME/kokoro/speak" --hush
+SELF="$0"
+while [ -L "$SELF" ]; do
+  LINK=$(readlink "$SELF")
+  case "$LINK" in
+    /*) SELF="$LINK" ;;
+     *) SELF="$(dirname "$SELF")/$LINK" ;;
+  esac
+done
+exec "$(cd "$(dirname "$SELF")" && pwd)/speak" --hush

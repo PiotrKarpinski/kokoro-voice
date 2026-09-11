@@ -1,6 +1,17 @@
 #!/bin/sh
 # Finds the interpreter the installer built, then runs the real client.
-HERE=$(cd "$(dirname "$0")" && pwd)
+# $0 may be a symlink (installer puts one in ~/.local/bin), so walk it to the
+# real file before deriving the directory - otherwise we look for speak.py
+# next to the symlink.
+SELF="$0"
+while [ -L "$SELF" ]; do
+  LINK=$(readlink "$SELF")
+  case "$LINK" in
+    /*) SELF="$LINK" ;;
+     *) SELF="$(dirname "$SELF")/$LINK" ;;
+  esac
+done
+HERE=$(cd "$(dirname "$SELF")" && pwd)
 VENV="${KOKORO_HOME:-$HOME/.kokoro}/.venv/bin/python"
 if [ ! -x "$VENV" ]; then
   echo "kokoro-voice is not installed yet - run install.sh from the plugin." >&2
