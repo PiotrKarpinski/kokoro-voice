@@ -10,6 +10,8 @@ warnings.filterwarnings("ignore")
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 HERE      = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import platforms
 DATA      = pathlib.Path(os.environ.get("KOKORO_HOME",
                          pathlib.Path.home()/".kokoro"))
 DATA.mkdir(parents=True, exist_ok=True)
@@ -96,7 +98,7 @@ def bg_worker():
                         "title": job.get("title", "")}))
                 except OSError:
                     pass
-                subprocess.run(["afplay", wav], check=False)
+                platforms.play(wav)
         except Exception as e:
             print(f"bg error: {e}", flush=True)
         finally:
@@ -144,7 +146,7 @@ while True:
                 try:
                     while True: BG.get_nowait(); BG.task_done()
                 except queue.Empty: pass
-                subprocess.run(["pkill","-f","^afplay"], check=False)
+                platforms.stop_all()
                 f.write(json.dumps({"drained": True})+"\n"); f.flush(); continue
             tmp = tempfile.mkdtemp(prefix="speak."); mine.add(tmp)
             voice = req.get("voice", "af_heart")

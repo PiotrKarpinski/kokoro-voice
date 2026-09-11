@@ -7,6 +7,8 @@ with what you are hearing. Drag to move. Double-click to pause or resume.
 import json, os, pathlib, sys, subprocess, sys, tkinter as tk, time
 
 HERE   = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import platforms
 DATA   = pathlib.Path(os.environ.get("KOKORO_HOME",
                       pathlib.Path.home()/".kokoro"))
 NOW    = DATA/".now-playing"
@@ -16,11 +18,8 @@ POS    = DATA/".hud-pos"
 BG, FG_PAST, FG_NOW, FG_NEXT, ACCENT = "#16181d", "#5c6370", "#e8eaed", "#8b919c", "#7aa2f7"
 
 def be_background_app():
-    """Accessory apps cannot take foreground focus, so showing the window never
-    switches the user's Space."""
     try:
-        from AppKit import NSApp, NSApplicationActivationPolicyAccessory
-        NSApp().setActivationPolicy_(NSApplicationActivationPolicyAccessory)
+        platforms.background_app()
     except Exception as e:
         print(f"policy: {e}", file=sys.stderr)
 
@@ -148,23 +147,8 @@ def tick():
     root.after(120, tick)
 
 def join_all_spaces():
-    """Without this the window lives on one Space and vanishes when you switch."""
     try:
-        from AppKit import (NSApp, NSWindowCollectionBehaviorCanJoinAllSpaces,
-                            NSWindowCollectionBehaviorStationary,
-                            NSWindowCollectionBehaviorFullScreenAuxiliary,
-                            NSFloatingWindowLevel)
-        for w in NSApp().windows():
-            w.setCollectionBehavior_(
-                NSWindowCollectionBehaviorCanJoinAllSpaces |
-                NSWindowCollectionBehaviorStationary |
-                NSWindowCollectionBehaviorFullScreenAuxiliary)
-            w.setLevel_(NSFloatingWindowLevel)
-            try:
-                w.setHidesOnDeactivate_(False)
-                w.resignKeyWindow()
-            except Exception:
-                pass
+        platforms.float_window(root)
     except Exception as e:
         print(f"spaces: {e}", file=sys.stderr)
 

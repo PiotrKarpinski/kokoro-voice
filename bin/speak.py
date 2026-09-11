@@ -15,6 +15,8 @@ warnings.filterwarnings("ignore")
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 HERE      = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import platforms                   # all OS-specific behaviour lives here
 DATA      = pathlib.Path(os.environ.get("KOKORO_HOME",
                          pathlib.Path.home()/".kokoro"))
 DATA.mkdir(parents=True, exist_ok=True)
@@ -271,13 +273,13 @@ if HUDON.exists() and not (a.list or a.status or a.where):
 
 if a.pause:
     PAUSE.touch()
-    subprocess.run(["pkill","-STOP","-x","afplay"], check=False)
+    platforms.pause_all()
     print("paused")
     sys.exit(0)
 
 if a.resume:
     PAUSE.unlink(missing_ok=True)
-    subprocess.run(["pkill","-CONT","-x","afplay"], check=False)
+    platforms.resume_all()
     print("resumed")
     sys.exit(0)
 
@@ -313,7 +315,7 @@ if a.follow:
 
 if a.hush:
     PAUSE.unlink(missing_ok=True)
-    subprocess.run(["pkill","-CONT","-x","afplay"], check=False)   # un-freeze first
+    platforms.resume_all()   # un-freeze first
     NOW.unlink(missing_ok=True)
     HUSHF.touch()                       # stops in-flight clients between chunks
     s = connect()
@@ -323,7 +325,7 @@ if a.hush:
             f.write(json.dumps({"drain": 1})+"\n"); f.flush(); f.readline()
         finally:
             s.close()
-    subprocess.run(["pkill","-x","afplay"], check=False)
+    platforms.stop_all()
     print("hushed")
     sys.exit(0)
 
@@ -382,7 +384,7 @@ def player():
     while (p := q.get()) is not None:
         if hushed():
             continue                     # drain the rest without playing it
-        subprocess.run(["afplay", p], check=False)
+        platforms.play(p)
 th = threading.Thread(target=player); th.start()
 
 def via_daemon():
