@@ -4,7 +4,7 @@
 Reads the daemon's live position, so the current sentence is highlighted in sync
 with what you are hearing. Drag to move. Double-click to pause or resume.
 """
-import json, os, pathlib, subprocess, sys, tkinter as tk, time
+import json, os, pathlib, sys, subprocess, sys, tkinter as tk, time
 
 HERE   = pathlib.Path(__file__).resolve().parent
 DATA   = pathlib.Path(os.environ.get("KOKORO_HOME",
@@ -47,7 +47,17 @@ subject = tk.Label(bar, text="", bg=BG, fg=FG_PAST, font=("SF Pro Text", 11))
 subject.pack(side="left", padx=(8, 0))
 
 def say(*args):
-    subprocess.run([str(HERE/"kokoro"), *args], capture_output=True)
+    """Run a kokoro command. Never fail silently - a dead button with no
+    feedback is worse than an error."""
+    exe = HERE/"kokoro"
+    cmd = [str(exe), *args] if exe.exists() else ["kokoro", *args]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or "failed").strip().splitlines()[0][:40])
+    except Exception as e:
+        title.config(text=f"! {e}", fg="#e06c75")
+        root.after(4000, lambda: title.config(fg=ACCENT))
 
 def button(glyph, cmd, fg=FG_NEXT, size=13):
     b = tk.Label(bar, text=glyph, bg=BG, fg=fg, cursor="pointinghand",
@@ -58,7 +68,10 @@ def button(glyph, cmd, fg=FG_NEXT, size=13):
     b.bind("<Leave>",    lambda e: b.config(fg=fg))
     return b
 
-button("✕", root.destroy, FG_PAST, 12)          # hide the window itself
+def close():
+    say("--hush")
+    root.destroy()
+button("✕", close, FG_PAST, 12)   # stopping the voice is what ✕ must mean
 button("■", lambda: say("--hush"))               # stop speaking for good
 btn_play = button("❚❚", lambda: say("--resume" if PAUSED.exists() else "--pause"))
 
@@ -89,8 +102,15 @@ for w in (bar, title, txt):
 
 shown, last_key = False, None
 
+MY_STAMP = pathlib.Path(__file__).stat().st_mtime
+
 def tick():
     global shown, last_key
+    try:                      # the daemon restarts itself on a code change;
+        if pathlib.Path(__file__).stat().st_mtime != MY_STAMP:   # so must this
+            os.execv(sys.executable, [sys.executable, __file__])
+    except OSError:
+        pass
     st = None
     try:
         st = json.loads(NOW.read_text())
