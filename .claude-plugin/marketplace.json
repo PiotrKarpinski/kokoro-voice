@@ -2,12 +2,16 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "kokoro-voice",
   "description": "Local offline speech for Claude Code",
-  "owner": { "name": "Peter Karpinski" },
+  "owner": {
+    "name": "Piotr Karpinski"
+  },
   "plugins": [
     {
       "name": "kokoro-voice",
       "description": "Claude speaks to you. Local, offline text-to-speech with Kokoro-82M: ask for a summary out loud, have your work narrated as it happens, and read along in a floating transcript you can pause mid-sentence.",
-      "author": { "name": "Peter Karpinski" },
+      "author": {
+        "name": "Piotr Karpinski"
+      },
       "category": "productivity",
       "source": "./"
     }

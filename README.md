@@ -14,14 +14,14 @@ Built on [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-2.0).
 ## Install
 
 ```sh
-git clone https://github.com/<you>/kokoro-voice ~/kokoro-voice
+git clone https://github.com/PiotrKarpinski/kokoro-voice ~/kokoro-voice
 ~/kokoro-voice/install.sh
 ```
 
 Then, in Claude Code:
 
 ```
-/plugin marketplace add <you>/kokoro-voice
+/plugin marketplace add PiotrKarpinski/kokoro-voice
 /plugin install kokoro-voice
 ```
 
@@ -84,5 +84,12 @@ gee dee".
   Space unless it is already running.
 - English voices are the well-tested ones. Kokoro ships others; they are untried
   here.
+
+## Contributing
+
+macOS only today, and that is plumbing rather than anything deep — the engine is
+portable. [PORTING.md](PORTING.md) is an audit of every platform-specific call,
+what a Linux port actually needs (about forty lines), and why Windows is harder.
+Ports and PRs welcome.
 
 MIT licensed. Kokoro-82M is Apache-2.0.

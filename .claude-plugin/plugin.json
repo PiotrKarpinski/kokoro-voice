@@ -3,7 +3,7 @@
   "description": "Claude speaks to you. Local, offline text-to-speech with Kokoro-82M: ask for a summary out loud, have your work narrated as it happens, and read along in a floating transcript you can pause mid-sentence.",
   "version": "1.1.0",
   "author": {
-    "name": "Peter Karpinski"
+    "name": "Piotr Karpinski"
   },
   "keywords": [
     "voice",
