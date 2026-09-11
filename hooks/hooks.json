@@ -1,0 +1,12 @@
+{
+  "description": "Carries narration mode and live speech position into each turn. Prints nothing when nothing is speaking.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/voice-hook\"", "timeout": 5 }
+        ]
+      }
+    ]
+  }
+}

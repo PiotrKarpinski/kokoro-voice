@@ -1,0 +1,58 @@
+#!/bin/sh
+# Two independent jobs, each silent when not relevant:
+#   1. narration mode, if the flag file is there
+#   2. live audio state, if something is being spoken right now
+K="${KOKORO_HOME:-$HOME/.kokoro}"
+
+if [ -f "$K/.narrate" ]; then
+cat <<'TXT'
+<narration-mode>
+Narration mode is ON. Load the `narrate` skill before your first beat and follow
+it. In short: speak brief progress beats with `speak --bg "..."` as you work
+(three to eight for a normal task; never plain `speak`, which blocks), and queue a
+spoken summary the same way when you finish.
+
+NEVER speak a filename, path or extension aloud - "player dot g d" is nonsense in
+the ear. Name what the file DOES: "the player movement script", "the spring
+script". Same for code, commands, flags and long numbers.
+
+Keep answering in the chat as normal; this is an extra channel, not a
+replacement. If the user wants it to stop, run `speak --hush` and remove the
+narration flag at "$KOKORO_HOME/.narrate" (default ~/.kokoro/.narrate).
+</narration-mode>
+TXT
+fi
+
+[ -f "$K/.now-playing" ] || exit 0
+KOKORO_STATE="$K" python3 - <<'PY'
+import json, os, pathlib, time, sys
+k = pathlib.Path(os.environ["KOKORO_STATE"])
+try:
+    st = json.loads((k/".now-playing").read_text())
+except Exception:
+    sys.exit(0)
+if time.time() - st.get("at", 0) > 120:
+    sys.exit(0)
+s, i = st["sentences"], st["index"]
+print("<speaking-now>")
+print(f"You are speaking aloud RIGHT NOW - sentence {i+1} of {st['total']}.")
+print("The user is hearing this as they type. What they just heard:")
+for n, line in enumerate(s[max(0, i-3): i+1], start=max(0, i-3)):
+    print(f"  {'>>' if n == i else '  '} {line}")
+if (k/".paused").exists():
+    print("Playback is currently PAUSED.")
+print("""
+Their message may well be about what they are hearing - a request to slow down,
+go back, explain, or stop. It may equally be unrelated. Judge it; do not pattern
+match on particular words.
+
+If it IS about the audio: run `speak --pause` FIRST, before anything else,
+because every second you think is another sentence they sit through. Then answer
+in the chat as text - they asked because listening did not work, so repeating it
+aloud will not help. Then `speak --resume` to carry on from exactly where it
+froze, or `speak --hush` to drop the rest if they have moved on. `speak --where`
+gives more context than the window above.
+
+If it is NOT about the audio, ignore this block entirely and let it play.
+</speaking-now>""")
+PY

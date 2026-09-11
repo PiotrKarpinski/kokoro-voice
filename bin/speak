@@ -1,0 +1,9 @@
+#!/bin/sh
+# Finds the interpreter the installer built, then runs the real client.
+HERE=$(cd "$(dirname "$0")" && pwd)
+VENV="${KOKORO_HOME:-$HOME/.kokoro}/.venv/bin/python"
+if [ ! -x "$VENV" ]; then
+  echo "kokoro-voice is not installed yet - run install.sh from the plugin." >&2
+  exit 1
+fi
+exec "$VENV" "$HERE/speak.py" "$@"
