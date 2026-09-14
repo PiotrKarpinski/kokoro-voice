@@ -71,7 +71,7 @@ ln -sf "$HERE/bin/hush"   "$BIN/hush"
 rm -f "$BIN/speak"   # espeak-ng ships its own `speak`; ours must not collide
 case ":$PATH:" in *":$BIN:"*) ;; *)
   echo "    NOTE: $BIN is not on your PATH. Add this to your shell profile:"
-  echo "      export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
+  echo "      export PATH=\"$BIN:\$PATH\"" ;;
 esac
 
 echo

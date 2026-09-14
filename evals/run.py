@@ -13,10 +13,15 @@ Needs this plugin's `voice` skill and hook active (dev mode or installed), an
 installed runtime in ~/.kokoro, and the `claude` CLI.
 """
 import argparse, concurrent.futures as cf, datetime, json, os, pathlib, re
-import shutil, subprocess, sys, tempfile, time
+import shlex, shutil, subprocess, sys, tempfile, time
 
 HERE    = pathlib.Path(__file__).resolve().parent
 RUNTIME = pathlib.Path(os.environ.get("KOKORO_RUNTIME", pathlib.Path.home()/".kokoro"))
+
+# Extra `claude` arguments, e.g. to test a particular copy of the plugin in
+# isolation from your own settings:
+#   KOKORO_EVAL_CLAUDE_ARGS='--plugin-dir /path/to/clone --setting-sources project,local --allowedTools Bash'
+EXTRA = shlex.split(os.environ.get("KOKORO_EVAL_CLAUDE_ARGS", ""))
 
 FILENAME = re.compile(r"\b[\w-]+\.(py|gd|md|json|tscn|sh|js|ts|txt|yaml|toml)\b|(?:\w+/)+\w+", re.I)
 PLAYING_TEXT = ["The spring is a timer, not a health bar.",
@@ -85,7 +90,7 @@ def run_case(case, timeout):
 
         env = dict(os.environ, KOKORO_HOME=str(home), KOKORO_DRY_RUN="1")
         t0 = time.time()
-        p = subprocess.run(["claude", "-p", case["prompt"], "--output-format", "json"],
+        p = subprocess.run(["claude", "-p", case["prompt"], "--output-format", "json", *EXTRA],
                            cwd=project, env=env, stdin=subprocess.DEVNULL,
                            capture_output=True, text=True, timeout=timeout)
         try:
@@ -126,7 +131,9 @@ def main():
         assert g in GRADERS, f"unknown grader {g}"
     cases = [c for c in json.loads((HERE/"cases.json").read_text()) if a.case in c["name"]]
     jobs = [(c, i) for c in cases for i in range(a.runs)]
-    print(f"{len(cases)} case(s) x {a.runs} run(s) = {len(jobs)} session(s)\n", flush=True)
+    print(f"{len(cases)} case(s) x {a.runs} run(s) = {len(jobs)} session(s)", flush=True)
+    print(f"runtime: {RUNTIME}" + (f"\nclaude args: {' '.join(EXTRA)}" if EXTRA else ""), flush=True)
+    print(flush=True)
 
     results = {}
     with cf.ThreadPoolExecutor(a.parallel) as ex:
