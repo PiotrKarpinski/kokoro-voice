@@ -29,7 +29,10 @@ The installer builds the speech engine; the plugin wires up the skills, the
 commands and the hook. Both steps are needed - the plugin alone has no voice,
 and the installer alone has no skills.
 
-Costs about 580 tokens of always-on context per session.
+Context cost, measured with `claude --plugin-dir . plugin details kokoro-voice`:
+about 276 tokens always-on, about 1.6k when the voice skill fires. The hook adds
+a short mode note to each message — roughly 35 tokens in `on-request`, 170 in
+`narrate`, nothing when `off`.
 
 The installer builds an isolated Python environment in `~/.kokoro`, installs
 `espeak-ng` through Homebrew, and links `kokoro` and `hush` into `~/.local/bin`.
@@ -40,21 +43,28 @@ speech engine itself is portable; the plumbing around it is not.
 
 ## Using it
 
-Just ask. "Read me the summary", "say that out loud", "tell me out loud" — the
-`kokoro` skill triggers on ordinary phrasing in any project. `/speak` if you would
-rather be explicit.
+One skill, `voice`, and one setting with three modes:
+
+| mode | behaviour |
+|---|---|
+| `on-request` | speaks when you ask — "read me the summary", "say it out loud". The default. |
+| `narrate` | short spoken beats while it works, then one spoken summary |
+| `off` | never speaks |
+
+Switch with `/voice narrate`, `/voice on`, `/voice off` — or just say "narrate
+this" or "voice off". `/voice` on its own speaks a summary of the session.
 
 | | |
 |---|---|
-| `/narrate on` | hear short beats while work happens |
+| `kokoro --set mode=narrate` | same switch, from a terminal |
 | `kokoro --hud on` | floating transcript, always on top |
 | `kokoro --config` | every setting, and which you have changed |
-| `kokoro --set speed=1.3` | change one — voice, speed, hud, retention, daemon limits |
-| `kokoro --version` | plugin version, commit, and where code and data live |
 | `hush` | stop it, instantly, from any terminal |
-| `kokoro --list` | transcripts of past summaries |
+| `kokoro --version` | plugin version, commit, and where code and data live |
 
-Everything spoken is archived to `~/.kokoro/spoken/` and pruned after 180 days.
+While it's talking you can just type "wait, what was that?" — it pauses, answers
+in text, and resumes from the same sentence. Everything spoken is archived to
+`~/.kokoro/spoken/`.
 
 ## How it works
 
@@ -70,7 +80,7 @@ playing — which sentence you are hearing. That second one is what makes "huh?"
 work: Claude can see what you just heard and judge whether your message is about
 it, instead of matching against a list of magic phrases.
 
-The **skills** hold the craft: write for the ear, never speak file paths, spell
+The **skill** holds the craft: write for the ear, never speak file paths, spell
 units out. Those rules are measured, not guessed — `~300 MB` is silently dropped
 by the phonemizer, `&&` becomes "and-and", and `player.gd` becomes "player dot
 gee dee".
@@ -84,6 +94,14 @@ gee dee".
   Space unless it is already running.
 - English voices are the well-tested ones. Kokoro ships others; they are untried
   here.
+
+## Evals
+
+`python3 evals/run.py` runs real headless Claude Code sessions against a small
+fixture project, with the voice in dry-run so nothing plays, and checks what
+would have been said: did it speak when asked and stay silent otherwise, did it
+avoid filenames, keep summaries to length, respect `off`, pause on "huh?".
+Use `--runs 3` — consistency across runs is the thing being measured.
 
 ## Contributing
 

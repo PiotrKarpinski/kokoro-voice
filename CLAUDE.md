@@ -18,8 +18,8 @@ why the command is called `kokoro`.
 
 This machine runs the repo live, not an installed plugin:
 
-- `~/.claude/skills/{speak,narrate}` and `~/.claude/commands/{speak,narrate}.md`
-  are symlinks into this repo
+- `~/.claude/skills/voice` and `~/.claude/commands/voice.md` are symlinks into
+  this repo
 - the hook is wired by hand in `~/.claude/settings.json`
 
 So edits take effect on the next command. The daemon and the transcript window
@@ -34,7 +34,9 @@ plugin from the marketplace: the hook fires twice and every skill appears twice.
     bin/hud.py          floating transcript window
     bin/platforms/      ALL OS-specific code. darwin.py is the tested backend
     hooks/voice-hook    injects narration mode and live speech position
-    skills/, commands/  what Claude reads
+    skills/voice/       the one skill: modes, ear rules, interrupts
+    commands/voice.md   /voice [on|narrate|off|status|<text>]
+    evals/              run.py + cases.json + fixture/, dry-run graded
 
 ## Checking a change
 
@@ -43,9 +45,24 @@ plugin from the marketplace: the hook fires twice and every skill appears twice.
     kokoro --bg "test"        daemon path; then --pause, --where, --resume, --hush
     kokoro --status           daemon warm? RAM?
     claude plugin validate .  manifest check
+    claude --plugin-dir . plugin details kokoro-voice   token cost, no install needed
 
 Test through the `kokoro` symlink, not `bin/kokoro` directly: the symlink bug
 only shows up that way.
+
+## Modes
+
+`mode` in `~/.kokoro/config.json`: `off`, `on-request` (default), `narrate`. The
+hook injects it into every message. `off` is enforced in the client, not just in
+the skill. The old `.narrate` flag file is still read if no mode is set.
+
+## Evals
+
+    python3 evals/run.py --runs 3
+
+Run it after any change to the skill, the hook, or text handling. Each session
+gets its own temp KOKORO_HOME and KOKORO_DRY_RUN=1, so it never plays audio and
+never touches your real config.
 
 ## Things that already bit us
 

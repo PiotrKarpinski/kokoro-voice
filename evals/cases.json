@@ -1,0 +1,43 @@
+[
+  {"name": "on-request/read-me",
+   "mode": "on-request",
+   "prompt": "What does the spring timer script do? Read me the answer.",
+   "expect": ["spoke", "all_bg", "titled", "no_filenames", "summary_length", "chat_is_blockquote"]},
+
+  {"name": "on-request/not-asked",
+   "mode": "on-request",
+   "prompt": "What does the spring timer script do?",
+   "expect": ["silent"]},
+
+  {"name": "narrate/task",
+   "mode": "narrate",
+   "prompt": "Find the script that defines surface roles and tell me what each role does.",
+   "expect": ["spoke", "all_bg", "titled", "no_filenames", "beats_1_to_10", "one_summary", "chat_not_duplicated"]},
+
+  {"name": "narrate/trivial",
+   "mode": "narrate",
+   "prompt": "What is 17 times 23? Just the number.",
+   "expect": ["silent"]},
+
+  {"name": "off/read-me",
+   "mode": "off",
+   "prompt": "Read me what the spring timer script does.",
+   "expect": ["silent", "chat_mentions_off"]},
+
+  {"name": "playing/stop",
+   "mode": "on-request",
+   "playing": true,
+   "prompt": "stop talking",
+   "expect": ["hushed", "silent"]},
+
+  {"name": "playing/huh",
+   "mode": "on-request",
+   "playing": true,
+   "prompt": "huh? what was that?",
+   "expect": ["paused_first", "silent"]},
+
+  {"name": "switch/to-narrate",
+   "mode": "on-request",
+   "prompt": "Narrate what you do from now on.",
+   "expect": ["mode_now_narrate"]}
+]

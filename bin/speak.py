@@ -38,6 +38,7 @@ DEFAULTS = {
     "keep_days":         180,       # transcript retention
     "idle_exit_seconds": 900,       # daemon quits after this long unused
     "rss_ceiling_mb":    2600,      # daemon restarts above this
+    "mode":              "on-request",  # off | on-request | narrate
 }
 
 def load_config():
@@ -53,6 +54,12 @@ def load_config():
         pass
     if HUDON.exists():
         cfg["hud"] = True
+    try:
+        explicit = "mode" in json.loads(CONFIG.read_text())
+    except (OSError, ValueError):
+        explicit = False
+    if not explicit and (DATA/".narrate").exists():
+        cfg["mode"] = "narrate"
     return cfg
 
 def save_config(cfg):
@@ -100,7 +107,21 @@ ap.add_argument("--version", action="store_true")
 a = ap.parse_args()
 
 ARCHIVE.mkdir(parents=True, exist_ok=True)
+MODES = ("off", "on-request", "narrate")
 CFG = load_config()
+
+DRY = os.environ.get("KOKORO_DRY_RUN")
+def dry_log(kind, **kw):
+    """Eval harness: record what would have happened instead of making sound."""
+    with open(DATA/"dryrun.jsonl", "a") as f:
+        f.write(json.dumps({"kind": kind, "at": time.time(), **kw}) + "\n")
+
+if DRY and (a.hush or a.pause or a.resume or a.where):
+    kind = "hush" if a.hush else "pause" if a.pause else "resume" if a.resume else "where"
+    dry_log(kind)
+    print({"hush": "hushed", "pause": "paused", "resume": "resumed",
+           "where": "nothing is playing"}[kind])
+    sys.exit(0)
 
 if a.version:
     try:
@@ -141,6 +162,12 @@ if a.set:
                      else type(d)(v)
         except ValueError:
             sys.exit(f"{k} expects a {type(d).__name__}")
+        if k == "mode":
+            if CFG[k] not in MODES:
+                sys.exit(f"mode must be one of: {', '.join(MODES)}")
+            (DATA/".narrate").unlink(missing_ok=True)
+            if CFG[k] == "off":
+                subprocess.run([sys.executable, __file__, "--hush"], capture_output=True)
         print(f"{k} = {CFG[k]}")
     save_config(CFG)
     (DATA/".speed").unlink(missing_ok=True)      # superseded by config.json
@@ -338,6 +365,9 @@ if a.list:
         print(f"{f.stem}  {f.read_text().strip().splitlines()[0][:78]}")
     sys.exit(0)
 
+if CFG["mode"] == "off":
+    sys.exit("voice is off - turn it on with: kokoro --set mode=on-request")
+
 raw = (DATA/"last-spoken.txt").read_text() if a.replay else \
       (" ".join(a.text) if a.text else sys.stdin.read())
 
@@ -354,6 +384,11 @@ t = re.sub(r"\.(\s*\.)+", ".", t)
 t = re.sub(r"\s+", " ", t).strip()
 if not t:
     sys.exit("nothing to say")
+
+if DRY:
+    dry_log("speak", bg=bool(a.bg), title=globals().get("TITLE", ""), text=t,
+            words=len(t.split()), mode=CFG["mode"])
+    sys.exit(0)
 
 # --------------------------------------------------------- fire and forget
 if a.bg:

@@ -1,27 +1,52 @@
 #!/bin/sh
-# Two independent jobs, each silent when not relevant:
-#   1. narration mode, if the flag file is there
-#   2. live audio state, if something is being spoken right now
+# UserPromptSubmit hook. Carries the voice mode into every turn, plus the live
+# speech position while something is playing. The mode lives in config.json
+# (kokoro --set mode=...). Rules that must hold go HERE: sessions often act on
+# this text without loading the skill.
 K="${KOKORO_HOME:-$HOME/.kokoro}"
 
-if [ -f "$K/.narrate" ]; then
+MODE=$(KOKORO_STATE="$K" python3 - <<'PY'
+import json, os, pathlib
+k = pathlib.Path(os.environ["KOKORO_STATE"])
+try:
+    cfg = json.loads((k/"config.json").read_text())
+except Exception:
+    cfg = {}
+mode = cfg.get("mode")
+if mode is None:
+    mode = "narrate" if (k/".narrate").exists() else "on-request"
+print(mode)
+PY
+)
+
+case "$MODE" in
+on-request)
 cat <<'TXT'
-<narration-mode>
-Narration mode is ON. Load the `narrate` skill before your first beat and follow
-it. In short: speak brief progress beats with `kokoro --bg "..."` as you work
-(three to eight for a normal task; never plain `kokoro`, which blocks), and queue a
-spoken summary the same way when you finish.
-
-NEVER speak a filename, path or extension aloud - "player dot g d" is nonsense in
-the ear. Name what the file DOES: "the player movement script", "the spring
-script". Same for code, commands, flags and long numbers.
-
-Keep answering in the chat as normal; this is an extra channel, not a
-replacement. If the user wants it to stop, run `kokoro --hush` and remove the
-narration flag at "$KOKORO_HOME/.narrate" (default ~/.kokoro/.narrate).
-</narration-mode>
+<voice mode="on-request">
+Voice is available through the `voice` skill (command: `kokoro`). Speak only when
+the user asks to hear something. Otherwise answer normally in text.
+</voice>
 TXT
-fi
+;;
+narrate)
+cat <<'TXT'
+<voice mode="narrate">
+Voice mode is NARRATE. Follow the `voice` skill. The rules that must hold:
+
+- Speak short progress beats as you work: `kokoro --bg --title "<subject>" "<beat>"`.
+  Three to eight words each, three to eight per task, at meaningful steps only.
+  Always --bg; plain `kokoro` blocks the work.
+- When the task is done, queue ONE spoken summary the same way, 100-180 words,
+  written for the ear.
+- NEVER speak a filename, path, extension, code, command or flag. "player dot g d"
+  is nonsense aloud. Say what the file does: "the player movement script".
+- Answer in the chat exactly as normal. Narration is an extra channel. Do not also
+  paste the spoken summary into the chat.
+- Trivial one-line answers need no narration at all.
+</voice>
+TXT
+;;
+esac
 
 [ -f "$K/.now-playing" ] || exit 0
 KOKORO_STATE="$K" python3 - <<'PY'
@@ -42,17 +67,13 @@ for n, line in enumerate(s[max(0, i-3): i+1], start=max(0, i-3)):
 if (k/".paused").exists():
     print("Playback is currently PAUSED.")
 print("""
-Their message may well be about what they are hearing - a request to slow down,
-go back, explain, or stop. It may equally be unrelated. Judge it; do not pattern
-match on particular words.
+Their message may be about what they are hearing - slow down, go back, explain,
+stop. It may equally be unrelated. Judge it; do not pattern match on words.
 
-If it IS about the audio: run `kokoro --pause` FIRST, before anything else,
-because every second you think is another sentence they sit through. Then answer
-in the chat as text - they asked because listening did not work, so repeating it
-aloud will not help. Then `kokoro --resume` to carry on from exactly where it
-froze, or `kokoro --hush` to drop the rest if they have moved on. `kokoro --where`
-gives more context than the window above.
+If it IS about the audio: run `kokoro --pause` FIRST, before anything else. Answer
+in the chat as text. Then `kokoro --resume`, or `kokoro --hush` if they have moved
+on. `kokoro --where` gives more context.
 
-If it is NOT about the audio, ignore this block entirely and let it play.
+If it is NOT about the audio, ignore this block and let it play.
 </speaking-now>""")
 PY
