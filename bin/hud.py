@@ -112,7 +112,9 @@ def _darker(hexcol, f=0.72):
 PALETTE = {                                       # the window's blues, by part of the picture
     "s0": "#1f2f52", "s1": "#34508c", "s2": "#5a7fcf", "s3": ACCENT, "s4": "#d2e0ff",   # skin
     "cable": "#2f4f96", "cable2": "#1e3466", "node": "#9fbcff", "pulse": "#d6e4ff",   # cable hair
-    "iris": "#5a82d6", "pupil": "#0f1a33", "white": "#6d8cc8",   # soft, not glowing
+    "iris": "#6f9dff", "pupil": "#0f1a33", "white": "#b8cbef",   # anime eyes: bright iris,
+    "shine": "#ffffff", "lash": "#0c1428", "dimple": "#2a4478",   # a white highlight, dark lashes
+    "cap": "#16264a",
     "lid": "#16244a", "brow": "#2a4478",
     "lip": "#b3c9ff", "void": "#0b1224", "teeth": "#e6eeff",
     "cloth": "#1a2744", "lapel": "#5a7fcf", "shirt": "#d2e0ff", "bg": BG,

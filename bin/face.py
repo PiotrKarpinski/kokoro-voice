@@ -82,32 +82,32 @@ def body(x, y):
     return None
 
 def _cables():
-    """Cable hair: strands from a centre part that flow around the face and
-    drape past the jaw. Fixed for every frame, so computed once."""
+    """Cable hair: strands spread along a rounded crown that fall almost
+    straight down, curving only to go around the face. Computed once."""
     cells = {}
-    n = 10
+    n = 11
     for side in (-1, 1):
         for k in range(n):
             f = (k + 0.5) / n
             vary = ((k * 7 + (3 if side > 0 else 11)) % 10) / 10.0
-            y_top = -0.95 + 0.14 * f ** 1.5
-            y_end = 0.28 + 0.50 * vary
-            thick = k % 3 == 0
+            x0 = 0.64 * f                                     # along the crown, not from a point
+            y_top = -0.92 + 0.30 * f ** 2                     # a rounded dome
+            y_end = 0.30 + 0.45 * vary
+            thick = k % 3 == 1
             prev = None
             for r in range(max(0, int((y_top + 1) / DY)), min(ROWS - 1, int((y_end + 1) / DY)) + 1):
                 y = row_y(r)
-                s = _clamp((y - y_top) / 0.40)
-                x = 0.62 * f * (0.45 + 0.55 * math.sin(s * math.pi / 2)) + 0.12 * _clamp((y + 0.10) / 0.85)
-                x = min(x, 0.82)                                          # drape, don't fan out
-                if x < face_half_width(y) + COLW:                         # around the face, never over it
+                x = x0 + 0.08 * _clamp((y + 0.2) / 0.9)       # a gentle fall outward
+                if x < face_half_width(y) + COLW:             # around the face, never over it
                     x = face_half_width(y) + COLW * (1 + k % 2)
+                x = min(x, 0.80)
                 c = x_col(side * x)
                 if not 0 <= c < COLS:
                     continue
                 d = 0 if prev is None else c - prev
                 if abs(d) >= 1:
                     ch, kind = ("\\" if d > 0 else "/"), "cable"
-                elif (r + k) % 6 == 0 and not thick:
+                elif (r + k) % 7 == 0 and not thick:
                     ch, kind = "o", "node"
                 else:
                     ch, kind = ("┃" if thick else "│"), "cable"
@@ -117,39 +117,59 @@ def _cables():
                 prev = c
     return cells
 
+def in_cap(x, y):
+    """The dark cap of hair under the crown, so the top of the head is not bare."""
+    top = Y0 - A
+    if y >= top:
+        return False
+    k = (top - y) / 0.32
+    return k < 1 and abs(x) < 0.66 * math.sqrt(max(0.0, 1 - k * k))
+
 CABLES = _cables()
 
+def _put(rows, r, c, ch, kind):
+    if 0 <= r < ROWS and 0 <= c < COLS:
+        rows[r][c] = (ch, kind)
+
 def _draw_mouth(rows, jaw):
-    """A drawn smile - a curve, not a shaded bar - that opens to show teeth."""
+    """A small, gentle smile with dimples - it opens only a little to talk."""
     mr = int(round((Y0 + 0.40 * A + 1) / DY - 0.5))
-    cl, cr = COLS // 2 - 6, COLS // 2 + 5           # corners
-    def put(r, c, ch, kind):
-        if 0 <= r < ROWS and 0 <= c < COLS:
-            rows[r][c] = (ch, kind)
-    put(mr - 1, cl - 1, ".", "lip"); put(mr - 1, cr + 1, ".", "lip")     # lifted corners
-    if jaw < 0.2:
-        put(mr, cl, "\\", "lip"); put(mr, cr, "/", "lip")
-        for c in range(cl + 1, cr):
-            put(mr, c, "_", "lip")
-        return
-    put(mr, cl, "\\", "lip"); put(mr, cr, "/", "lip")
+    cl, cr = COLS // 2 - 3, COLS // 2 + 2                      # six columns wide
+    _put(rows, mr, cl - 2, "(", "dimple"); _put(rows, mr, cr + 2, ")", "dimple")
+    _put(rows, mr, cl, "\\", "lip"); _put(rows, mr, cr, "/", "lip")
+    inner = "=" if jaw >= 0.2 else "_"
     for c in range(cl + 1, cr):
-        put(mr, c, "=", "teeth")
-    if jaw < 0.6:
-        put(mr + 1, cl + 1, "\\", "lip"); put(mr + 1, cr - 1, "/", "lip")
+        _put(rows, mr, c, inner, "teeth" if inner == "=" else "lip")
+    if jaw >= 0.6:
+        _put(rows, mr + 1, cl + 1, "\\", "lip"); _put(rows, mr + 1, cr - 1, "/", "lip")
         for c in range(cl + 2, cr - 1):
-            put(mr + 1, c, "_", "lip")
-        return
-    put(mr + 1, cl + 1, "\\", "lip"); put(mr + 1, cr - 1, "/", "lip")
-    for c in range(cl + 2, cr - 1):
-        put(mr + 1, c, " ", "void")
-    put(mr + 2, cl + 2, "\\", "lip"); put(mr + 2, cr - 2, "/", "lip")
-    for c in range(cl + 3, cr - 2):
-        put(mr + 2, c, "_", "lip")
+            _put(rows, mr + 1, c, "_", "lip")
+
+EYE_OPEN = (" _.=====._ ",      # thick upper lashes
+            "(  o*@@o  )",      # big iris, highlight, pupil; spaces are the whites
+            " '-.ooo.-' ")      # lower lid and the bottom of the iris
+EYE_SHUT = ("           ",
+            " '-.___.-' ",      # a happy closed arc
+            "           ")
+EYE_KIND = {"_": "lash", ".": "lash", "=": "lash", "(": "lash", ")": "lash", "'": "lash",
+            "-": "lash", "o": "iris", "*": "shine", "@": "pupil"}
+
+def _draw_eyes(rows, eyes_open):
+    er = int(round((Y0 - 0.18 * A + 1) / DY - 0.5))            # the middle row of each eye
+    for su in (-0.40, 0.40):
+        c0 = x_col(su * W0) - 5
+        for i, line in enumerate(EYE_OPEN if eyes_open else EYE_SHUT):
+            for j, ch in enumerate(line):
+                if ch == " ":
+                    if eyes_open and i == 1:
+                        _put(rows, er - 1 + i, c0 + j, " ", "white")
+                    continue
+                _put(rows, er - 1 + i, c0 + j, ch, EYE_KIND.get(ch, "lash"))
 
 def frame(jaw, eyes_open=True):
-    """ROWS lists of (char, kind). Kinds: bg, s0-s4 skin, cable, cable2, node,
-    iris, pupil, white, lid, brow, lip, void, teeth, cloth, lapel, shirt."""
+    """ROWS lists of (char, kind). Kinds: bg, s0-s4 skin, cap, cable, cable2,
+    node, lash, iris, shine, pupil, white, brow, dimple, lip, teeth, cloth,
+    lapel, shirt."""
     L = (-0.22, -0.34, 0.91)
     n = math.sqrt(sum(v * v for v in L)); L = tuple(v / n for v in L)
     rows = []
@@ -161,6 +181,8 @@ def frame(jaw, eyes_open=True):
             t, u = (y - Y0) / A, x / W0
             if (r, c) in CABLES:
                 row.append(CABLES[(r, c)]); continue
+            if in_cap(x, y):
+                row.append((":" if (r + c) % 2 else ".", "cap")); continue
             z = face_height(x, y)
             if z is None:
                 bd = body(x, y)
@@ -170,26 +192,10 @@ def frame(jaw, eyes_open=True):
                     row.append((ch, f"s{min(4, int(b * 5))}" if kind == "s" else kind)); continue
                 row.append((" ", "bg")); continue
             eye = None
-            for su in (-0.40, 0.40):
-                du, dt = (u - su) / 0.21, (t + 0.18) / 0.065
-                if du * du + dt * dt < 1.0:
-                    if not eyes_open:
-                        eye = ("^", "lid") if abs(dt) < 0.45 else None      # closed and content
-                    elif dt < -0.50:
-                        eye = ("_", "lid")
-                    elif abs(du) < 0.11 and abs(dt) < 0.45:
-                        eye = ("@", "pupil")
-                    elif abs(du) < 0.30:
-                        eye = ("o", "iris")
-                    else:
-                        eye = ("-", "white")
-                    break
-            if eye:
-                row.append(eye); continue
             for su in (-1, 1):
                 au = su * u
                 if 0.16 < au < 0.72:
-                    tb = -0.37 - 0.04 * math.exp(-((au - 0.46) / 0.22) ** 2)
+                    tb = -0.46 - 0.04 * math.exp(-((au - 0.46) / 0.22) ** 2)
                     if abs(t - tb) < 0.05:
                         eye = ("~", "brow")
             if eye:
@@ -203,6 +209,7 @@ def frame(jaw, eyes_open=True):
             b = _clamp((0.38 + 0.62 * lit) * (0.62 + 0.38 * _clamp(z)))
             row.append((RAMP[min(8, int(b * 10))], f"s{min(4, int(b * 5))}"))   # '@' is kept for pupils
         rows.append(row)
+    _draw_eyes(rows, eyes_open)
     _draw_mouth(rows, jaw)
     return rows
 
