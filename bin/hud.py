@@ -111,10 +111,10 @@ def _darker(hexcol, f=0.72):
 
 PALETTE = {                                       # the window's blues, by part of the picture
     "s0": "#1f2f52", "s1": "#34508c", "s2": "#5a7fcf", "s3": ACCENT, "s4": "#d2e0ff",   # skin
-    "h0": "#0f1830", "h1": "#1a2a52", "h2": "#2e4a8a", "h3": "#5577c4",                # hair
+    "cable": "#2f4f96", "cable2": "#1e3466", "node": "#9fbcff", "pulse": "#d6e4ff",   # cable hair
     "iris": "#5a82d6", "pupil": "#0f1a33", "white": "#6d8cc8",   # soft, not glowing
     "lid": "#16244a", "brow": "#2a4478",
-    "lip": "#8fb0ff", "void": "#0b1224", "teeth": "#dbe6ff",
+    "lip": "#b3c9ff", "void": "#0b1224", "teeth": "#e6eeff",
     "cloth": "#1a2744", "lapel": "#5a7fcf", "shirt": "#d2e0ff", "bg": BG,
 }
 head = tk.Text(root, bg=BG, bd=0, highlightthickness=0, height=face.ROWS, width=face.COLS,
@@ -134,11 +134,14 @@ def render_head(level, paused):
     eyes = not (paused or now < blink["until"])
     step = 0 if paused else min(face.JAW_STEPS - 1, int(level * face.JAW_STEPS))
     rows = FACE_FRAMES[(step, eyes)]
+    phase = int(now * 10)                             # light pulses run down the cables
     args = []
     for r, row in enumerate(rows):
         suffix = "_dim" if paused else ("_scan" if r % 2 else "")
         run, tag = "", None
-        for ch, kind in row:
+        for c, (ch, kind) in enumerate(row):
+            if not paused and kind in ("cable", "cable2") and (r - phase + c % 5) % 9 == 0:
+                kind = "pulse"
             t = kind + suffix
             if t != tag and run:
                 args += [run, tag]; run = ""
