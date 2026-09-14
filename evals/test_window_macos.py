@@ -50,7 +50,7 @@ def main():
     home = pathlib.Path(tempfile.mkdtemp(prefix="kv-window-"))
     screen_w = NSScreen.mainScreen().frame().size.width
     (home/".hud-pos").write_text("[-455, 124]")        # the position a live window drifted to
-    env = dict(os.environ, KOKORO_HOME=str(home))
+    env = dict(os.environ, KOKORO_HOME=str(home), KOKORO_HUD_LINGER="0.3")   # hide checks stay quick
     proc = subprocess.Popen([sys.executable, str(ROOT/"bin/hud.py"), "--home", str(home)],
                             env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
 

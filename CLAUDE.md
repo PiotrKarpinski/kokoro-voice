@@ -79,6 +79,11 @@ never touches your real config.
 
 ## Things that already bit us
 
+- **The window blinked in and out during narration.** It hid the moment nothing
+  was speaking, and narrate beats arrive seconds apart. It now lingers
+  (KOKORO_HUD_LINGER, default 6 s). Breathing that moved the head a whole text
+  row read as a glitch; it is a brightness pulse now.
+
 - **afplay per sentence cost ~1.2 s of dead air each launch,** plus ~0.6 s of
   Kokoro padding: pauses near 2 s. The daemon now plays in-process (NSSound),
   trims padding, joins ready sentences with a 120 ms gap, and starts the next

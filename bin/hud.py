@@ -150,7 +150,7 @@ class Life:
                 self.gaze, self.gaze_until = (0, -1), now + 0.45    # glance up at the transcript
                 if asking:
                     self.brows, self.brows_until = (1, 1, 0), now + 1.6
-                    self.tilt_target = random.choice((-3.0, 3.0))
+                    self.tilt_target = random.choice((-2.0, 2.0))
                 elif random.random() < 0.35:
                     self.brows, self.brows_until = (1, 1, 0), now + 0.5
         if paused:
@@ -166,14 +166,27 @@ class Life:
             elif random.random() < 0.004:
                 self.brows, self.brows_until = random.choice(((1, 0, 0), (0, 1, 0))), now + 1.2
         if now >= self.next_tilt:
-            self.tilt_target = random.choice((-2.5, -1.5, 0.0, 0.0, 1.5, 2.5))
-            self.next_tilt = now + random.uniform(3, 8)
+            self.tilt_target = random.choice((-1.5, -1.0, 0.0, 0.0, 0.0, 1.0, 1.5))
+            self.next_tilt = now + random.uniform(6, 12)
         self.tilt += (self.tilt_target - self.tilt) * 0.08          # ease, never snap
 
     def breathing_out(self, now):
         return (now - self.breath0) % 4.8 > 2.6
 
 life = Life()
+
+_breath_step = [None]
+def breathe_light(now):
+    """Breathing as light, not movement: the skin brightens and dims slowly.
+    Moving the head a whole text row read as a glitch."""
+    b = (1 - math.cos(2 * math.pi * ((now - life.breath0) % 4.8) / 4.8)) / 2
+    step = int(b * 4)
+    if step == _breath_step[0]:
+        return
+    _breath_step[0] = step
+    f = 0.90 + 0.025 * step
+    for kind in ("s0", "s1", "s2", "s3", "s4"):
+        head.tag_config(kind, foreground=_darker(PALETTE[kind], f))
 
 def render_head(level, paused, st=None):
     now = time.time()
@@ -183,7 +196,8 @@ def render_head(level, paused, st=None):
     face.draw_eyes(rows, now >= life.blink_until, *life.gaze)
     step = 0 if paused else min(face.JAW_STEPS - 1, int(level * face.JAW_STEPS))
     face.draw_mouth(rows, step / (face.JAW_STEPS - 1))
-    rows = face.breathe(face.tilt(rows, life.tilt), life.breathing_out(now))
+    rows = face.tilt(rows, life.tilt)
+    breathe_light(now)
     phase = int(now * 10)                             # light pulses run down the cables
     args = []
     for r, row in enumerate(rows):
@@ -240,6 +254,8 @@ for w in (bar, title, txt, head):
     w.bind("<Double-Button-1>", toggle)
 
 shown, last_key = False, None
+last_seen, last_st = 0.0, None
+LINGER = float(os.environ.get("KOKORO_HUD_LINGER", "6"))   # stay up between spaced-out speech
 
 def ensure_on_screen():
     """macOS can move a window while it is hidden: a live one was found at
@@ -255,7 +271,7 @@ def ensure_on_screen():
 MY_STAMP = pathlib.Path(__file__).stat().st_mtime
 
 def tick():
-    global shown, last_key
+    global shown, last_key, last_seen, last_st
     try:                      # the daemon restarts itself on a code change;
         if pathlib.Path(__file__).stat().st_mtime != MY_STAMP:   # so must this
             os.execv(sys.executable, [sys.executable, *sys.argv])   # keep the --home tag
@@ -271,6 +287,10 @@ def tick():
     except Exception:
         st = None
 
+    if st is not None:
+        last_seen, last_st = time.time(), st
+    elif shown and last_st is not None and time.time() - last_seen < LINGER:
+        st = dict(last_st, level=0.0)             # nothing playing: stay a moment, mouth closed
     if st is None:
         if shown:
             try:
