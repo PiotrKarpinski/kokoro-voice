@@ -1,0 +1,35 @@
+name: ci
+
+# What a stranger's Mac does on install, plus every check that needs no model,
+# no Claude login and no speakers. The Claude-session evals (evals/run.py) are
+# not here: they need an account and cost money per run.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install (the README's install step)
+        run: ./install.sh
+
+      - name: kokoro is on PATH and reports itself
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          kokoro --version
+          kokoro --config
+
+      - name: Text rules
+        run: python3 evals/test_normalize.py
+
+      - name: Client, modes and hooks
+        run: sh evals/test_offline.sh

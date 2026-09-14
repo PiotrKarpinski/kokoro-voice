@@ -4,7 +4,7 @@
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 K="${KOKORO_HOME:-$HOME/.kokoro}"
-BIN="$HOME/.local/bin"
+BIN="${KOKORO_BIN:-$HOME/.local/bin}"   # override to install somewhere else
 
 [ "$(uname)" = "Darwin" ] || {
   echo "This needs macOS: it plays audio with afplay and floats the transcript"

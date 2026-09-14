@@ -1,5 +1,7 @@
 # kokoro-voice
 
+[![ci](https://github.com/PiotrKarpinski/kokoro-voice/actions/workflows/ci.yml/badge.svg)](https://github.com/PiotrKarpinski/kokoro-voice/actions/workflows/ci.yml)
+
 Claude Code talks to you. Entirely on your machine — no account, no network, no
 audio leaving the laptop.
 
@@ -40,7 +42,7 @@ a short mode note to each message — roughly 35 tokens in `on-request`, 170 in
 `narrate`, nothing when `off`.
 
 The installer builds an isolated Python environment in `~/.kokoro`, installs
-`espeak-ng` through Homebrew, and links `kokoro` and `hush` into `~/.local/bin`.
+`espeak-ng` through Homebrew, and links `kokoro` and `hush` into `~/.local/bin` (set `KOKORO_HOME` / `KOKORO_BIN` to put them elsewhere).
 The first thing you speak downloads the model, about 330 MB, once.
 
 **macOS only.** Playback uses `afplay` and the floating window uses Cocoa. The
@@ -116,6 +118,10 @@ fixture project, with the voice in dry-run so nothing plays, and checks what
 would have been said: did it speak when asked and stay silent otherwise, did it
 avoid filenames, keep summaries to length, respect `off`, pause on "huh?".
 Use `--runs 3` — consistency across runs is the thing being measured.
+
+Two faster suites need no Claude session and run on every push in CI:
+`python3 evals/test_normalize.py` (the text rules) and `sh evals/test_offline.sh`
+(the client in dry-run, modes, both hooks).
 
 ## Contributing
 

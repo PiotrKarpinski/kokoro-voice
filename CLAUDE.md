@@ -49,6 +49,7 @@ plugin from the marketplace: the hook fires twice and every skill appears twice.
     kokoro --status           daemon warm? RAM?
     claude plugin validate .  manifest check
     claude --plugin-dir . plugin details kokoro-voice   token cost, no install needed
+    python3 evals/test_normalize.py && sh evals/test_offline.sh   what CI runs, ~5s, no model
 
 Test through the `kokoro` symlink, not `bin/kokoro` directly: the symlink bug
 only shows up that way.
