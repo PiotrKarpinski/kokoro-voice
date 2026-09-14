@@ -11,6 +11,11 @@ text, and picks up exactly where it froze.
 
 Built on [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-2.0).
 
+<p align="center">
+  <img src="docs/transcript-window.png" width="560"
+       alt="The floating transcript window mid-speech: the current sentence in bold, earlier lines dimmed, with pause, stop and close buttons">
+</p>
+
 ## Install
 
 ```sh
