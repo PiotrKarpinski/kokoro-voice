@@ -14,6 +14,8 @@ A backend provides:
     background_app()     stop the transcript window taking foreground focus
     float_window(root)   keep it above other windows, on every desktop
     on_screen(x,y,w,h)   is a saved window position on a connected display
+    show_window(root)    make the window visible without taking focus
+    hide_window(root)    make it invisible
 
 The last three may be trivial; the window still works without them.
 """
@@ -41,3 +43,5 @@ resume_all     = _b.resume_all
 background_app = _b.background_app
 float_window   = _b.float_window
 on_screen      = getattr(_b, "on_screen", lambda x, y, w, h: True)
+show_window    = getattr(_b, "show_window", lambda root: (root.attributes("-alpha", 1.0), root.deiconify()))
+hide_window    = getattr(_b, "hide_window", lambda root: root.withdraw())

@@ -70,6 +70,15 @@ never touches your real config.
 
 ## Things that already bit us
 
+- **Tk's `deiconify` activates the app on macOS.** That made showing the window
+  pull users out of a full-screen chat onto another desktop - reported twice.
+  The window now starts transparent and is never withdrawn; `show_window` orders
+  the NSWindow front regardless of activation and `hide_window` makes it
+  transparent and click-through. A live window had also drifted to x=-455 and
+  lost its floating level, so both are re-applied on every show. Check with
+  `~/.kokoro/.venv/bin/python evals/test_window_macos.py` - it measures the
+  real window from the window server, including that it never goes frontmost.
+
 - **Two installs on one machine killed each other.** Daemon and window were found
   by script name, so a test install stopped the real one's processes. They are
   now started with `--home <KOKORO_HOME>` and every lookup matches that tag -

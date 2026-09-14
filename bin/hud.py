@@ -42,21 +42,27 @@ root = tk.Tk()
 be_background_app()
 root.title("Transcript")
 root.overrideredirect(True)
-root.attributes("-topmost", True)
+root.attributes("-alpha", 0.0)         # invisible until there is speech; never withdrawn
 root.configure(bg=BG)
 
 W, H = 470, 250
 DEFAULT_POS = (root.winfo_screenwidth() - W - 28, 48)
-try:
-    x, y = json.loads(POS.read_text())
+
+def target_pos():
+    """The saved position if it is on a connected display, else the default."""
     try:
-        if not platforms.on_screen(int(x), int(y), W, H):   # its monitor is gone
-            x, y = DEFAULT_POS
+        x, y = (int(v) for v in json.loads(POS.read_text()))
+    except Exception:
+        return DEFAULT_POS
+    try:
+        if not platforms.on_screen(x, y, W, H):
+            return DEFAULT_POS
     except Exception:
         pass
-except Exception:
-    x, y = DEFAULT_POS
-root.geometry(f"{W}x{H}+{int(x)}+{int(y)}")
+    return x, y
+
+x, y = target_pos()
+root.geometry(f"{W}x{H}+{x}+{y}")
 
 bar = tk.Frame(root, bg=BG, height=26)
 bar.pack(fill="x", padx=10, pady=(8, 0))
@@ -122,6 +128,17 @@ for w in (bar, title, txt):
 
 shown, last_key = False, None
 
+def ensure_on_screen():
+    """macOS can move a window while it is hidden: a live one was found at
+    x=-455 with a saved position of 1246. Put it back before every show."""
+    try:
+        root.update_idletasks()
+        if not platforms.on_screen(root.winfo_x(), root.winfo_y(), W, H):
+            px, py = target_pos()
+            root.geometry(f"+{px}+{py}")
+    except Exception:
+        pass
+
 MY_STAMP = pathlib.Path(__file__).stat().st_mtime
 
 def tick():
@@ -143,12 +160,20 @@ def tick():
 
     if st is None:
         if shown:
-            root.withdraw(); shown = False
+            try:
+                platforms.hide_window(root)
+            except Exception as e:
+                print(f"hide: {e}", file=sys.stderr); root.withdraw()
+            shown = False
         root.after(200, tick); return
 
     if not shown:
-        root.deiconify()          # topmost is set once at startup; re-asserting
-        shown = True              # it here would activate the app and switch Space
+        ensure_on_screen()
+        try:                      # never Tk's deiconify on macOS: it activates the app
+            platforms.show_window(root)          # and pulls you out of a full-screen chat
+        except Exception as e:
+            print(f"show: {e}", file=sys.stderr); root.deiconify()
+        shown = True
 
     paused = PAUSED.exists()
     title.config(text="paused" if paused else "● speaking",
@@ -175,7 +200,8 @@ def join_all_spaces():
     except Exception as e:
         print(f"spaces: {e}", file=sys.stderr)
 
-root.withdraw()
+root.update()                          # mapped, but still fully transparent
+platforms.hide_window(root)
 root.after(400, join_all_spaces)      # NSWindow must exist first
 tick()
 root.mainloop()

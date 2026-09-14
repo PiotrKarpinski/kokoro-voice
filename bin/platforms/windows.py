@@ -20,3 +20,11 @@ def float_window(root): pass
 def on_screen(x, y, w, h):
     # No display enumeration yet; trust the saved position.
     return True
+
+def show_window(root):
+    root.attributes("-alpha", 1.0)
+    root.deiconify()
+    root.attributes("-topmost", True)
+
+def hide_window(root):
+    root.withdraw()

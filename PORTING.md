@@ -27,6 +27,7 @@ A backend is seven functions:
 | `pause_all()` / `resume_all()` | freeze and unfreeze, resumably |
 | `background_app()` | stop the transcript window stealing focus |
 | `float_window(root)` | keep it above others, on every desktop |
+| `show_window(root)` / `hide_window(root)` | show and hide the window without it taking focus. Optional: the default is Tk's deiconify/withdraw, which is fine where showing a window does not steal focus |
 
 The last two may be no-ops — the window still works without them. An optional
 `on_screen(x, y, w, h)` lets the window recover from an unplugged display;

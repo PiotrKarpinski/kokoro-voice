@@ -52,3 +52,27 @@ def on_screen(x, y, w, h):
         if left <= cx <= left + f.size.width and top <= ty <= top + f.size.height:
             return True
     return False
+
+def _windows():
+    from AppKit import NSApp
+    return list(NSApp().windows())
+
+def show_window(root):
+    """Show WITHOUT activating the app. Tk's deiconify makes Python the
+    frontmost app, which drags a user out of a full-screen chat to another
+    desktop. Ordering the NSWindow front regardless does not activate - checked
+    against the frontmost-app list, step by step."""
+    from AppKit import NSFloatingWindowLevel
+    float_window(root)                       # re-assert: the level had been lost on a live window
+    for w in _windows():
+        w.setLevel_(NSFloatingWindowLevel)
+        w.setIgnoresMouseEvents_(False)
+        w.setAlphaValue_(1.0)
+        w.orderFrontRegardless()
+
+def hide_window(root):
+    """Transparent and click-through instead of withdrawn, so showing it again
+    never has to go through Tk's activating deiconify."""
+    for w in _windows():
+        w.setAlphaValue_(0.0)
+        w.setIgnoresMouseEvents_(True)
