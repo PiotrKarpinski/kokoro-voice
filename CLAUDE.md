@@ -70,6 +70,13 @@ never touches your real config.
 
 ## Things that already bit us
 
+- **Two installs on one machine killed each other.** Daemon and window were found
+  by script name, so a test install stopped the real one's processes. They are
+  now started with `--home <KOKORO_HOME>` and every lookup matches that tag -
+  scoped to its install. Audio stop/pause still target `afplay` by name.
+- **`off` used to inject nothing,** so sessions asked to "read me" answered in
+  text without saying why. Found only when evals ran without dev settings.
+
 - **Test a clean install** (`KOKORO_HOME=/tmp/x ./install.sh`). Two fatal bugs
   were invisible on this machine: the spaCy model fetched at runtime via uv,
   and the `speak` name collision.

@@ -46,7 +46,7 @@ for m in off on-request narrate; do
   printf '{"mode":"%s"}' "$m" > "$T/config.json"
   OUT=$(KOKORO_HOME="$T" sh "$ROOT/hooks/voice-hook")
   case $m in
-    off)        check "off injects nothing"            [ -z "$OUT" ] ;;
+    off)        check "off tells Claude voice is off"   sh -c "printf '%s' \"\$1\" | grep -q 'mode=\"off\"'" _ "$OUT" ;;
     on-request) check "on-request injects a short note" sh -c "printf '%s' \"\$1\" | grep -q 'mode=\"on-request\"'" _ "$OUT" ;;
     narrate)    check "narrate injects the rules"      sh -c "printf '%s' \"\$1\" | grep -q 'NEVER speak a filename'" _ "$OUT" ;;
   esac

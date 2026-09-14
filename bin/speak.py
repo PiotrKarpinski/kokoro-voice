@@ -211,6 +211,16 @@ def maintain():
 maintain()
 
 # --------------------------------------------------------------------- daemon
+def mine(script):
+    """pgrep pattern for a daemon or window belonging to THIS install only.
+    Matching on the script name alone let a second install on the same machine
+    find, restart and kill the first one's processes."""
+    return f"{script} --home {re.escape(str(DATA.resolve()))}$"
+
+def pids(script):
+    out = subprocess.run(["pgrep", "-f", mine(script)], capture_output=True, text=True).stdout
+    return [int(x) for x in out.split()]
+
 def connect(timeout=2.0):
     if not SOCK.exists():
         return None
@@ -241,17 +251,17 @@ def daemon_is_current():
 
 def stop_daemon():
     try:
-        out = subprocess.run(["pgrep","-f","speakd.py"], capture_output=True, text=True).stdout.split()
-        for pid in out:
-            os.kill(int(pid), 15)
+        found = pids("speakd.py")
+        for pid in found:
+            os.kill(pid, 15)
         SOCK.unlink(missing_ok=True)
-        return len(out)
+        return len(found)
     except Exception:
         return 0
 
 def start_daemon(wait=90):
     with open(LOG, "a") as log:
-        subprocess.Popen([sys.executable, str(HERE/"speakd.py")], stdout=log, stderr=log,
+        subprocess.Popen([sys.executable, str(HERE/"speakd.py"), "--home", str(DATA.resolve())], stdout=log, stderr=log,
                          start_new_session=True)
     deadline = time.time() + wait
     while time.time() < deadline:
@@ -261,16 +271,14 @@ def start_daemon(wait=90):
     return None
 
 def hud_running():
-    return subprocess.run(["pgrep","-f","hud.py"],
-                          capture_output=True).returncode == 0
+    return bool(pids("hud.py"))
 
 if a.status:
     s = connect()
     if s:
         s.close()
         fresh = "current" if daemon_is_current() else "STALE (will restart on next use)"
-        rss = subprocess.run(["ps","-o","rss=","-p",
-              subprocess.run(["pgrep","-f","speakd.py"],capture_output=True,text=True).stdout.split()[0]],
+        rss = subprocess.run(["ps","-o","rss=","-p", str(pids("speakd.py")[0])],
               capture_output=True, text=True).stdout.strip()
         print(f"daemon: warm, {fresh}, {int(rss)/1024:.0f} MB resident")
     else:
@@ -281,7 +289,8 @@ if a.status:
         else:
             why = ""
             try:
-                tail = [l for l in (DATA/".hud.log").read_text().splitlines() if l.strip()]
+                tail = [l for l in (DATA/".hud.log").read_text().splitlines()
+                        if l.strip() and "Task policy set failed" not in l]
                 why = tail[-1][:100] if tail else ""
             except OSError:
                 pass
@@ -296,7 +305,7 @@ if a.stop:
 
 def hud_start():
     if not hud_running():
-        subprocess.Popen([sys.executable, str(HERE/"hud.py")], stdout=open(DATA/".hud.log", "a"),
+        subprocess.Popen([sys.executable, str(HERE/"hud.py"), "--home", str(DATA.resolve())], stdout=open(DATA/".hud.log", "a"),
                          stderr=subprocess.STDOUT, start_new_session=True)
 
 if a.hud:
@@ -304,7 +313,7 @@ if a.hud:
         HUDON.touch(); hud_start(); print("transcript window on")
     else:
         HUDON.unlink(missing_ok=True)
-        subprocess.run(["pkill","-f","hud.py"], check=False)
+        [os.kill(pid, 15) for pid in pids("hud.py")]
         print("transcript window off")
     sys.exit(0)
 

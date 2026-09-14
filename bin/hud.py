@@ -128,7 +128,7 @@ def tick():
     global shown, last_key
     try:                      # the daemon restarts itself on a code change;
         if pathlib.Path(__file__).stat().st_mtime != MY_STAMP:   # so must this
-            os.execv(sys.executable, [sys.executable, __file__])
+            os.execv(sys.executable, [sys.executable, *sys.argv])   # keep the --home tag
     except OSError:
         pass
     st = None

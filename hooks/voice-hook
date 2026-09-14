@@ -20,6 +20,14 @@ PY
 )
 
 case "$MODE" in
+off)
+cat <<'TXT'
+<voice mode="off">
+Voice is off. If the user asks to hear something, answer in text and say in one
+short line that voice is off and `/voice on` turns it back on. Do not run `kokoro`.
+</voice>
+TXT
+;;
 on-request)
 cat <<'TXT'
 <voice mode="on-request">

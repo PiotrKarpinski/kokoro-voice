@@ -38,8 +38,8 @@ and the installer alone has no skills.
 
 Context cost, measured with `claude --plugin-dir . plugin details kokoro-voice`:
 about 276 tokens always-on, about 1.6k when the voice skill fires. The hook adds
-a short mode note to each message — roughly 35 tokens in `on-request`, 170 in
-`narrate`, nothing when `off`.
+a short mode note to each message — roughly 35 tokens in `on-request` and `off`,
+170 in `narrate`.
 
 The installer builds an isolated Python environment in `~/.kokoro`, installs
 `espeak-ng` through Homebrew, and links `kokoro` and `hush` into `~/.local/bin` (set `KOKORO_HOME` / `KOKORO_BIN` to put them elsewhere).
