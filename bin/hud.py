@@ -45,7 +45,7 @@ root.overrideredirect(True)
 root.attributes("-alpha", 0.0)         # invisible until there is speech; never withdrawn
 root.configure(bg=BG)
 
-W, H = 470, 380
+W, H = 470, 480
 DEFAULT_POS = (root.winfo_screenwidth() - W - 28, 48)
 
 def target_pos():
@@ -101,60 +101,59 @@ button("✕", close, FG_PAST, 12)   # stopping the voice is what ✕ must mean
 button("■", lambda: say("--hush"))               # stop speaking for good
 btn_play = button("❚❚", lambda: say("--resume" if PAUSED.exists() else "--pause"))
 
-# ---- the talking head: a small matrix-green face under the transcript -------
-FACE_W, RAIN_W = 17, 7
-GLYPHS = "01<>/\\|=+*:.#%$@"
-MOUTHS = [("  ___  ", "       "),          # closed
-          (" .---. ", " '---' "),          # small
-          (" /---\\ ", " \\___/ "),          # open
-          ("/-----\\", "\\_____/")]          # wide
-head = tk.Text(root, bg=BG, bd=0, highlightthickness=0, height=8,
-               width=FACE_W + 2 * RAIN_W, font=("Menlo", 10), cursor="arrow",
-               padx=0, pady=0, wrap="none")
-head.pack(side="bottom", pady=(0, 10))
-head.tag_config("face",    foreground="#3dff8b")
-head.tag_config("face_dim", foreground="#2a6b45")
-head.tag_config("rain",    foreground="#0e5a2b")
-head.tag_config("rain_hi", foreground="#8dffb8")
-drops = [{"y": random.randint(-8, 8), "len": random.randint(2, 5)} for _ in range(2 * RAIN_W)]
-blink = {"until": 0.0, "next": time.time() + random.uniform(2, 5)}
+# ---- the face: a SHODAN-style shaded mask under the transcript (bin/face.py) -
+import face
+FACE_FRAMES = face.frames()                       # every mouth step, eyes open and shut
 
-def face_lines(level, paused, blinking):
-    eye = "(-)" if (blinking or paused) else "(o)"
-    m1, m2 = MOUTHS[0 if paused else min(3, int(level * 4))]
-    return ["   .---------.   ",
-            "  /           \\  ",
-            f" |  {eye}   {eye}  | ",
-            " |      ^      | ",
-            f" |   {m1}   | ",
-            f" |   {m2}   | ",
-            "  \\           /  ",
-            "   '---------'   "]
+def _darker(hexcol, f=0.72):
+    r, g, b = (int(hexcol[i:i + 2], 16) for i in (1, 3, 5))
+    return "#%02x%02x%02x" % (int(r * f), int(g * f), int(b * f))
+
+BLUES = {"s0": "#15213a", "s1": "#223a6b", "s2": "#3a5ea8", "s3": ACCENT, "s4": "#c9daff",
+         "eye": "#f2f7ff", "circuit": "#4c78d6", "cable": "#2b4d8f", "void": BG, "bg": BG,
+         "glitch": "#9fbcff"}
+head = tk.Text(root, bg=BG, bd=0, highlightthickness=0, height=face.ROWS, width=face.COLS,
+               font=("Menlo", 7), cursor="arrow", padx=0, pady=0, wrap="none",
+               spacing1=0, spacing2=0, spacing3=0)
+head.pack(side="bottom", pady=(0, 10))
+for kind, colour in BLUES.items():
+    head.tag_config(kind, foreground=colour)
+    head.tag_config(kind + "_scan", foreground=_darker(colour, 0.78))   # CRT scanlines
+    head.tag_config(kind + "_dim", foreground=_darker(colour, 0.45))    # paused
+blink = {"until": 0.0, "next": time.time() + random.uniform(2, 5)}
 
 def render_head(level, paused):
     now = time.time()
     if now >= blink["next"]:
-        blink["until"], blink["next"] = now + 0.15, now + random.uniform(2.5, 6)
-    lines = face_lines(level, paused, now < blink["until"])
-    if not paused:                          # the rain only falls while it talks
-        for d in drops:
-            d["y"] += 1
-            if d["y"] - d["len"] > len(lines) + random.randint(0, 6):
-                d["y"], d["len"] = -random.randint(0, 4), random.randint(2, 5)
-    head.config(state="normal"); head.delete("1.0", "end")
-    for r, line in enumerate(lines):
-        for c in range(2 * RAIN_W):
-            if c == RAIN_W:
-                head.insert("end", line, "face_dim" if paused else "face")
-            dist = drops[c]["y"] - r
-            if dist == 0:
-                head.insert("end", random.choice(GLYPHS), "rain_hi")
-            elif 0 < dist <= drops[c]["len"]:
-                head.insert("end", random.choice(GLYPHS), "rain")
-            else:
-                head.insert("end", " ", "rain")
-        if r < len(lines) - 1:
-            head.insert("end", "\n")
+        blink["until"], blink["next"] = now + 0.12, now + random.uniform(3, 7)
+    eyes = not (paused or now < blink["until"])
+    step = 0 if paused else min(face.JAW_STEPS - 1, int(level * face.JAW_STEPS))
+    rows = FACE_FRAMES[(step, eyes)]
+    glitch = 0.0 if paused else 0.03 + 0.30 * level     # louder -> worse signal
+    args = []
+    for r, row in enumerate(rows):
+        cells = row
+        if random.random() < glitch:                     # the row slips sideways
+            k = random.choice((-2, -1, 1, 2))
+            cells = row[k:] + row[:k]
+        if random.random() < glitch * 0.35:              # and sometimes tears
+            a = random.randrange(0, face.COLS - 6)
+            cells = cells[:a] + [("▒", "glitch")] * random.randint(3, 6) + cells[a + 6:]
+            cells = cells[:face.COLS]
+        suffix = "_dim" if paused else ("_scan" if r % 2 else "")
+        run, tag = "", None
+        for ch, kind in cells:
+            t = kind + suffix
+            if t != tag and run:
+                args += [run, tag]; run = ""
+            tag = t; run += ch
+        if run:
+            args += [run, tag]
+        if r < len(rows) - 1:
+            args += ["\n", "bg"]
+    head.config(state="normal")
+    head.delete("1.0", "end")
+    head.insert("end", *args)
     head.config(state="disabled")
 
 def mouth_level(st, paused):
