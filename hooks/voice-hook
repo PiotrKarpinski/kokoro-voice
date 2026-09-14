@@ -56,8 +56,8 @@ try:
     st = json.loads((k/".now-playing").read_text())
 except Exception:
     sys.exit(0)
-if time.time() - st.get("at", 0) > 120:
-    sys.exit(0)
+if not (k/".paused").exists() and time.time() - st.get("at", 0) > 120:
+    sys.exit(0)             # stale - but a paused position is still exactly where they are
 s, i = st["sentences"], st["index"]
 print("<speaking-now>")
 print(f"You are speaking aloud RIGHT NOW - sentence {i+1} of {st['total']}.")

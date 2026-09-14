@@ -134,7 +134,9 @@ def tick():
     st = None
     try:
         st = json.loads(NOW.read_text())
-        if time.time() - st.get("at", 0) > 90:
+        # "at" only moves when a sentence starts, so a pause freezes it. Staleness
+        # means "nothing is really playing" - never true while paused on purpose.
+        if not PAUSED.exists() and time.time() - st.get("at", 0) > 90:
             st = None
     except Exception:
         st = None
