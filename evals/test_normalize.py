@@ -48,7 +48,7 @@ DELIVERY = [
     (segments("It is ⟪really⟫ fast."), [("It is", False), ("really", True), ("fast.", False)]),
     (pause_after("Shall we ship it?") > pause_after("Shipped."), True),
     (pause_after("Done!") < pause_after("Done."), True),
-    ([sentence_speed(i, 4) for i in range(4)], [0.92, 1.0, 1.0, 0.92]),
+    ([sentence_speed(i, 4) for i in range(4)], [0.97, 1.0, 1.0, 0.97]),
     ([sentence_speed(i, 2) for i in range(2)], [1.0, 1.0]),
     (plain("It is ⟪really⟫ fast."), "It is really fast."),
 ]

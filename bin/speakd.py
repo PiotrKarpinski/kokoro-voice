@@ -36,7 +36,7 @@ RSS_CEIL  = 2600         # MB. Torch grows per request; exit when idle above thi
                          # let the client restart us, rather than grow without bound.
 SPLIT     = r"(?<=[.!?])\s+"
 SR        = 24000
-KEEP      = int(0.07 * SR)        # silence kept either side of a sentence
+KEEP      = int(0.05 * SR)        # silence kept either side of a sentence
 GAP_S     = 0.12                  # pause put back between sentences
 PREROLL   = 0.10                  # start the next batch this early: macOS takes ~140 ms to
                                   # start a sound, and the overlap is trimmed silence
@@ -129,12 +129,12 @@ def generator():
                         pause = pause_after(job.marked[i - 1]) if i else 0.0
                         for j, (text, emph) in enumerate(segments(sentence)):
                             for _, _, audio in pipeline(job.voice[0])(
-                                    text, voice=job.voice, speed=speed * (0.88 if emph else 1.0),
+                                    text, voice=job.voice, speed=speed * (0.95 if emph else 1.0),
                                     split_pattern=r"\n+"):
                                 if hushed(job) or job.done.is_set():
                                     raise _Stop
-                                job.chunks.put((i, trim(audio), pause if j == 0 else 0.05))
-                                pause = 0.05
+                                job.chunks.put((i, trim(audio), pause if j == 0 else 0.03))
+                                pause = 0.03
                 gc.collect()
         except _Stop:
             pass
