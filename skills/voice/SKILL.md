@@ -19,6 +19,18 @@ Change it with `kokoro --set mode=narrate` (or `on-request`, `off`). Do that whe
 the user asks: "narrate this", "voice off", "stop narrating", "voice mode on".
 It takes effect from their next message.
 
+## Her personality
+
+Before composing speech, read `~/.kokoro/persona.md` if it exists and speak in
+that voice - word choice, humour, rhythm. It is the user's own, kept on their
+machine. The ear rules below still win: a persona never makes you say a
+filename.
+
+Delivery is handled for you: the first and last sentence of a longer passage
+are a little slower, a question gets a longer pause after it, and a phrase
+wrapped in `*asterisks*` is spoken slightly slower for weight. Use that on
+**one** phrase per summary at most - the point that matters.
+
 ## Writing for the ear
 
 Every word that goes to `kokoro` follows these rules, in every mode. They are

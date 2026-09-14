@@ -32,8 +32,11 @@ plugin from the marketplace: the hook fires twice and every skill appears twice.
     bin/speak.py        client: flags, config, flattening, archive
     bin/speakd.py       warm daemon: model in RAM, plays audio itself on its MAIN thread
                         (player), listener + generator threads, trimmed joined batches
-    bin/hud.py          floating transcript window
-    bin/normalize.py    ear rules in code: paths, units, dates, times, links
+    bin/hud.py          floating transcript window; class Life animates the face
+                        (glances, blinks, brows, tilt, breathing)
+    bin/normalize.py    ear rules in code, plus delivery: *emphasis*, pauses by
+                        punctuation, slower first and last sentence
+    bin/face.py         layered face: base() once, draw_brows/eyes/mouth per frame, tilt, breathe
     bin/platforms/      ALL OS-specific code. darwin.py is the tested backend
     hooks/voice-hook    injects the mode and live speech position each message
     hooks/stop-hook     narrate mode: blocks a working turn with no spoken summary, once
@@ -54,6 +57,11 @@ plugin from the marketplace: the hook fires twice and every skill appears twice.
 
 Test through the `kokoro` symlink, not `bin/kokoro` directly: the symlink bug
 only shows up that way.
+
+## Persona
+
+`~/.kokoro/persona.md` is the user's own and never committed. The skill reads
+it before speaking; the hook injects it in narrate mode only.
 
 ## Modes
 

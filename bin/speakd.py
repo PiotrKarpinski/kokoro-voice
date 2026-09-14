@@ -45,6 +45,7 @@ ENV_HZ    = 20                    # loudness samples per second, for the mouth
 
 import numpy as np, torch, soundfile as sf
 from kokoro import KPipeline
+from normalize import plain, segments, pause_after, sentence_speed
 
 GAP = np.zeros(int(GAP_S * SR), dtype="float32")
 
@@ -73,9 +74,10 @@ class Job:
         self.speed     = req.get("speed", 1.0)
         self.title     = req.get("title", "")
         self.save      = req.get("save")
-        self.sentences = [x for x in re.split(SPLIT, self.text) if x.strip()]
+        self.marked    = [x for x in re.split(SPLIT, self.text) if x.strip()]   # with emphasis
+        self.sentences = [plain(x) for x in self.marked]                        # as shown
         self.created   = time.time()
-        self.chunks    = queue.Queue()      # (sentence index, trimmed audio), then None
+        self.chunks    = queue.Queue()      # (sentence index, trimmed audio, pause before), then None
         self.done      = threading.Event()  # set once spoken, stopped, or dropped
         self.audio     = []                 # everything played, for --save
 
@@ -109,18 +111,33 @@ def envelope(audio):
     peak = rms.max() or 1.0
     return (rms / peak) ** 0.6              # lift quiet syllables so the mouth moves
 
+class _Stop(Exception):
+    pass
+
 def generator():
+    """Sentence by sentence, phrase by phrase: the first and last sentence a
+    little slower, emphasised phrases slower still, and a pause after each
+    sentence that suits its punctuation."""
     while True:
         job = GENQ.get()
         try:
             if not hushed(job):
+                count = len(job.marked)
                 with GEN, torch.inference_mode():
-                    for i, (_, _, audio) in enumerate(pipeline(job.voice[0])(
-                            job.text, voice=job.voice, speed=job.speed, split_pattern=SPLIT)):
-                        if hushed(job) or job.done.is_set():
-                            break
-                        job.chunks.put((i, trim(audio)))
+                    for i, sentence in enumerate(job.marked):
+                        speed = job.speed * sentence_speed(i, count)
+                        pause = pause_after(job.marked[i - 1]) if i else 0.0
+                        for j, (text, emph) in enumerate(segments(sentence)):
+                            for _, _, audio in pipeline(job.voice[0])(
+                                    text, voice=job.voice, speed=speed * (0.88 if emph else 1.0),
+                                    split_pattern=r"\n+"):
+                                if hushed(job) or job.done.is_set():
+                                    raise _Stop
+                                job.chunks.put((i, trim(audio), pause if j == 0 else 0.05))
+                                pause = 0.05
                 gc.collect()
+        except _Stop:
+            pass
         except Exception as e:
             print(f"generate error: {e}", flush=True)
         finally:
@@ -170,9 +187,10 @@ def play(job, tmp):
         if (sound is None or sound.finished() or near_end) and not want_pause:
             if pending:                               # everything ready plays as one sound
                 parts, offsets, indices, pos = [], [], [], 0
-                for n, (i, a) in enumerate(pending):
-                    if n:
-                        parts.append(GAP); pos += len(GAP)
+                for n, (i, a, pause) in enumerate(pending):
+                    if n or sound is not None:            # the first pause only between batches
+                        gap = np.zeros(int(pause * SR), dtype="float32")
+                        parts.append(gap); pos += len(gap)
                     offsets.append(pos / SR); indices.append(i)
                     parts.append(a); pos += len(a)
                 audio = np.concatenate(parts)

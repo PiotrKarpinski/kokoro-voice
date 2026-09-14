@@ -94,6 +94,14 @@ units out. Those rules are measured, not guessed — `~300 MB` is silently dropp
 by the phonemizer, `&&` becomes "and-and", and `player.gd` becomes "player dot
 gee dee".
 
+## Her personality and delivery
+
+Put a personality in `~/.kokoro/persona.md` - how she talks, her humour, what
+she references - and she speaks in that voice. It lives on your machine, not in
+the plugin. Delivery is automatic: the first and last sentence of a longer
+passage are a little slower, a question gets a longer pause, and a phrase in
+`*asterisks*` is spoken slightly slower for weight.
+
 ## The transcript window
 
 A floating transcript with a small green talking head underneath, whose mouth follows the loudness of the voice. Off by default — `kokoro --hud on`. When on, it shows for every spoken line,

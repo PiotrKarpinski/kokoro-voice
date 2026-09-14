@@ -32,6 +32,9 @@ CASES = [
     ("input -> output",                       "input to output",            "->"),
     ("run `kokoro --status`",                 "kokoro --status",            "`"),
     ("```\ncode\n```",                        "code block omitted",         "```"),
+    ("this is *really* important",           "⟪really⟫",                   "*"),
+    ("**ship it** today",                     "⟪ship it⟫",                  "**"),
+    ("* a bullet, not emphasis",              "a bullet, not emphasis",     "⟪"),
     # things that must survive untouched
     ("version 2.0.0 shipped",                 "2.0.0",                      "the 2"),
     ("pick one and/or both",                  "and/or",                     "folder"),
@@ -40,12 +43,26 @@ CASES = [
     ("the API returned 404",                  "API returned 404",           "file"),
 ]
 
+from normalize import segments, pause_after, sentence_speed, plain
+DELIVERY = [
+    (segments("It is ⟪really⟫ fast."), [("It is", False), ("really", True), ("fast.", False)]),
+    (pause_after("Shall we ship it?") > pause_after("Shipped."), True),
+    (pause_after("Done!") < pause_after("Done."), True),
+    ([sentence_speed(i, 4) for i in range(4)], [0.92, 1.0, 1.0, 0.92]),
+    ([sentence_speed(i, 2) for i in range(2)], [1.0, 1.0]),
+    (plain("It is ⟪really⟫ fast."), "It is really fast."),
+]
+
 fails = 0
+for got, want in DELIVERY:
+    if got != want:
+        fails += 1
+        print(f"FAIL  delivery: got {got!r}, want {want!r}")
 for raw, want, avoid in CASES:
     out = for_ear(raw)
     ok = want in out and avoid not in out
     fails += not ok
     if not ok:
         print(f"FAIL  {raw!r}\n      -> {out!r}\n      want {want!r}, avoid {avoid!r}")
-print(f"{len(CASES)-fails}/{len(CASES)} normaliser checks passed")
+print(f"{len(CASES)+len(DELIVERY)-fails}/{len(CASES)+len(DELIVERY)} normaliser and delivery checks passed")
 sys.exit(1 if fails else 0)

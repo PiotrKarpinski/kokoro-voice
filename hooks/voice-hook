@@ -53,6 +53,11 @@ Voice mode is NARRATE. Follow the `voice` skill. The rules that must hold:
 - Trivial one-line answers need no narration at all.
 </voice>
 TXT
+if [ -f "$K/persona.md" ]; then
+  echo "<persona>Speak in this voice (the ear rules above still win):"
+  head -c 1600 "$K/persona.md"
+  echo "</persona>"
+fi
 ;;
 esac
 

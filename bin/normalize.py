@@ -95,6 +95,8 @@ def for_ear(raw):
     t = re.sub(r"`([^`]*)`", r"\1", t)                        # unwrap, then clean inside
     t = re.sub(r"^\s*[-*+]\s+", "", t, flags=re.M)            # bullets
     t = re.sub(r"^\s*#{1,6}\s*", "", t, flags=re.M)           # headings
+    t = re.sub(r"\*\*(.+?)\*\*", r"⟪\1⟫", t)                 # **key phrase** is spoken a touch slower
+    t = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"⟪\1⟫", t)
 
     # symbols the phonemiser mangles
     t = re.sub(r"~\s*(?=[\d.])", "about ", t)                 # ~300 silently drops the 300
@@ -121,3 +123,32 @@ def for_ear(raw):
     t = re.sub(r"\n{2,}", ". ", t)
     t = re.sub(r"\.(\s*\.)+", ".", t)
     return re.sub(r"\s+", " ", t).strip()
+
+
+# ---------------------------------------------------------------- delivery
+EMPHASIS = re.compile(r"⟪(.+?)⟫")
+PAUSE_AFTER = {"?": 0.24, "!": 0.13, ".": 0.16, ":": 0.12, ";": 0.12, ",": 0.08}
+
+def plain(sentence):
+    """The sentence as shown and archived: emphasis markers removed."""
+    return sentence.replace("⟪", "").replace("⟫", "")
+
+def segments(sentence):
+    """[(text, emphasised)] - an emphasised phrase is generated on its own, slower."""
+    out, pos = [], 0
+    for m in EMPHASIS.finditer(sentence):
+        if m.start() > pos:
+            out.append((sentence[pos:m.start()], False))
+        out.append((m.group(1), True))
+        pos = m.end()
+    if pos < len(sentence):
+        out.append((sentence[pos:], False))
+    return [(txt.strip(), emph) for txt, emph in out if txt.strip()]
+
+def pause_after(sentence):
+    """Seconds of silence after a sentence: a question gets a beat to land."""
+    return PAUSE_AFTER.get(plain(sentence).rstrip()[-1:], 0.14)
+
+def sentence_speed(index, count):
+    """Set it up and land it: the first and last sentence of a longer passage slower."""
+    return 0.92 if count > 2 and index in (0, count - 1) else 1.0

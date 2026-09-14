@@ -434,7 +434,7 @@ if a.bg:
 
 # ------------------------------------------------------------------ playback
 q, parts, tmpdirs = queue.Queue(), [], set()
-SENTS = [x for x in re.split(SPLIT, t) if x.strip()]
+SENTS = [x for x in re.split(SPLIT, t.replace("⟪", "").replace("⟫", "")) if x.strip()]
 
 def publish(i):
     try:
@@ -496,7 +496,7 @@ def in_process():
     from kokoro import KPipeline
     tmp = tempfile.mkdtemp(prefix="speak."); tmpdirs.add(tmp)
     pipe = KPipeline(lang_code=a.voice[0], repo_id="hexgrad/Kokoro-82M")
-    for i, (_, _, audio) in enumerate(pipe(t, voice=a.voice, speed=a.speed,
+    for i, (_, _, audio) in enumerate(pipe(t.replace("⟪", "").replace("⟫", ""), voice=a.voice, speed=a.speed,
                                            split_pattern=SPLIT)):
         if hushed():
             break

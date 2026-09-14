@@ -1,11 +1,9 @@
 """The assistant's face, in text: a confident woman with cable hair.
 
-Procedurally shaded, not drawn: the face is a height field lit softly from the
-front and shaded into a character ramp. Structured features - cheekbones, a
-defined jaw, a softly squared chin - so it does not read as an egg. Calm eyes,
-arched brows, a drawn smile that opens to show teeth, and hair made of cables
-that fall from a centre part, flow around the face and drape onto the
-shoulders of a blazer.
+Built in layers so she can move. A base - skin, hair, clothes - is shaded once
+from a height field lit softly from the front. Brows, eyes and mouth are drawn
+over it every frame with whatever gaze, brow lift and mouth opening the moment
+needs, and tilt() and breathe() move the head on top of that.
 
 No Tk here, so it previews in a terminal:  python3 bin/face.py
 """
@@ -35,6 +33,9 @@ def x_col(x):
 
 def row_y(r):
     return -1 + (r + 0.5) * DY
+
+def row_of(y):
+    return int(round((y + 1) / DY - 0.5))
 
 def face_half_width(y):
     """Structured, not an oval: temples, cheekbones, a jaw angle, a squared chin."""
@@ -90,15 +91,15 @@ def _cables():
         for k in range(n):
             f = (k + 0.5) / n
             vary = ((k * 7 + (3 if side > 0 else 11)) % 10) / 10.0
-            x0 = 0.64 * f                                     # along the crown, not from a point
-            y_top = -0.92 + 0.30 * f ** 2                     # a rounded dome
+            x0 = 0.64 * f
+            y_top = -0.92 + 0.30 * f ** 2
             y_end = 0.30 + 0.45 * vary
             thick = k % 3 == 1
             prev = None
             for r in range(max(0, int((y_top + 1) / DY)), min(ROWS - 1, int((y_end + 1) / DY)) + 1):
                 y = row_y(r)
-                x = x0 + 0.08 * _clamp((y + 0.2) / 0.9)       # a gentle fall outward
-                if x < face_half_width(y) + COLW:             # around the face, never over it
+                x = x0 + 0.08 * _clamp((y + 0.2) / 0.9)
+                if x < face_half_width(y) + COLW:
                     x = face_half_width(y) + COLW * (1 + k % 2)
                 x = min(x, 0.80)
                 c = x_col(side * x)
@@ -117,6 +118,8 @@ def _cables():
                 prev = c
     return cells
 
+CABLES = _cables()
+
 def in_cap(x, y):
     """The dark cap of hair under the crown, so the top of the head is not bare."""
     top = Y0 - A
@@ -125,51 +128,10 @@ def in_cap(x, y):
     k = (top - y) / 0.32
     return k < 1 and abs(x) < 0.66 * math.sqrt(max(0.0, 1 - k * k))
 
-CABLES = _cables()
+NECK_ROW = row_of(0.50)          # rows above this move with the head
 
-def _put(rows, r, c, ch, kind):
-    if 0 <= r < ROWS and 0 <= c < COLS:
-        rows[r][c] = (ch, kind)
-
-def _draw_mouth(rows, jaw):
-    """A small, gentle smile with dimples - it opens only a little to talk."""
-    mr = int(round((Y0 + 0.40 * A + 1) / DY - 0.5))
-    cl, cr = COLS // 2 - 3, COLS // 2 + 2                      # six columns wide
-    _put(rows, mr, cl - 2, "(", "dimple"); _put(rows, mr, cr + 2, ")", "dimple")
-    _put(rows, mr, cl, "\\", "lip"); _put(rows, mr, cr, "/", "lip")
-    inner = "=" if jaw >= 0.2 else "_"
-    for c in range(cl + 1, cr):
-        _put(rows, mr, c, inner, "teeth" if inner == "=" else "lip")
-    if jaw >= 0.6:
-        _put(rows, mr + 1, cl + 1, "\\", "lip"); _put(rows, mr + 1, cr - 1, "/", "lip")
-        for c in range(cl + 2, cr - 1):
-            _put(rows, mr + 1, c, "_", "lip")
-
-EYE_OPEN = (" _.=====._ ",      # thick upper lashes
-            "(  o*@@o  )",      # big iris, highlight, pupil; spaces are the whites
-            " '-.ooo.-' ")      # lower lid and the bottom of the iris
-EYE_SHUT = ("           ",
-            " '-.___.-' ",      # a happy closed arc
-            "           ")
-EYE_KIND = {"_": "lash", ".": "lash", "=": "lash", "(": "lash", ")": "lash", "'": "lash",
-            "-": "lash", "o": "iris", "*": "shine", "@": "pupil"}
-
-def _draw_eyes(rows, eyes_open):
-    er = int(round((Y0 - 0.18 * A + 1) / DY - 0.5))            # the middle row of each eye
-    for su in (-0.40, 0.40):
-        c0 = x_col(su * W0) - 5
-        for i, line in enumerate(EYE_OPEN if eyes_open else EYE_SHUT):
-            for j, ch in enumerate(line):
-                if ch == " ":
-                    if eyes_open and i == 1:
-                        _put(rows, er - 1 + i, c0 + j, " ", "white")
-                    continue
-                _put(rows, er - 1 + i, c0 + j, ch, EYE_KIND.get(ch, "lash"))
-
-def frame(jaw, eyes_open=True):
-    """ROWS lists of (char, kind). Kinds: bg, s0-s4 skin, cap, cable, cable2,
-    node, lash, iris, shine, pupil, white, brow, dimple, lip, teeth, cloth,
-    lapel, shirt."""
+def base():
+    """Skin, hair and clothes, with no features. ROWS lists of (char, kind)."""
     L = (-0.22, -0.34, 0.91)
     n = math.sqrt(sum(v * v for v in L)); L = tuple(v / n for v in L)
     rows = []
@@ -178,7 +140,6 @@ def frame(jaw, eyes_open=True):
         row = []
         for c in range(COLS):
             x = col_x(c)
-            t, u = (y - Y0) / A, x / W0
             if (r, c) in CABLES:
                 row.append(CABLES[(r, c)]); continue
             if in_cap(x, y):
@@ -191,34 +152,135 @@ def frame(jaw, eyes_open=True):
                     ch = {"shirt": "#", "lapel": "/" if x < 0 else "\\"}.get(kind, RAMP[min(9, int(b * 10))])
                     row.append((ch, f"s{min(4, int(b * 5))}" if kind == "s" else kind)); continue
                 row.append((" ", "bg")); continue
-            eye = None
-            for su in (-1, 1):
-                au = su * u
-                if 0.16 < au < 0.72:
-                    tb = -0.46 - 0.04 * math.exp(-((au - 0.46) / 0.22) ** 2)
-                    if abs(t - tb) < 0.05:
-                        eye = ("~", "brow")
-            if eye:
-                row.append(eye); continue
-            dx, dy = COLW, DY
-            zx = (face_height(x + dx, y) or 0) - (face_height(x - dx, y) or 0)
-            zy = (face_height(x, y + dy) or 0) - (face_height(x, y - dy) or 0)
-            nx, ny = -zx / (2 * dx), -zy / (2 * dy)
+            zx = (face_height(x + COLW, y) or 0) - (face_height(x - COLW, y) or 0)
+            zy = (face_height(x, y + DY) or 0) - (face_height(x, y - DY) or 0)
+            nx, ny = -zx / (2 * COLW), -zy / (2 * DY)
             nn = math.sqrt(nx * nx + ny * ny + 1)
             lit = _clamp((nx * L[0] + ny * L[1] + L[2]) / nn)
             b = _clamp((0.38 + 0.62 * lit) * (0.62 + 0.38 * _clamp(z)))
             row.append((RAMP[min(8, int(b * 10))], f"s{min(4, int(b * 5))}"))   # '@' is kept for pupils
         rows.append(row)
-    _draw_eyes(rows, eyes_open)
-    _draw_mouth(rows, jaw)
     return rows
 
+_BASE = None
+def base_rows():
+    global _BASE
+    if _BASE is None:
+        _BASE = base()
+    return _BASE
+
+def _put(rows, r, c, ch, kind):
+    if 0 <= r < ROWS and 0 <= c < COLS:
+        rows[r][c] = (ch, kind)
+
+# ---------------------------------------------------------------- features
+def draw_brows(rows, left=0, right=0, inner=0):
+    """Lifts are in rows. left/right raise each brow; inner raises the inner
+    ends (surprise, worry) or, when negative, lowers them (focus)."""
+    for side, lift in ((-1, left), (1, right)):
+        for c in range(COLS):
+            au = side * col_x(c) / W0
+            if not 0.16 < au < 0.72:
+                continue
+            tb = -0.46 - 0.04 * math.exp(-((au - 0.46) / 0.22) ** 2)
+            r = row_of(Y0 + tb * A) - lift - (inner if au < 0.34 else 0)
+            _put(rows, r, c, "~", "brow")
+
+EYE_KIND = {"_": "lash", ".": "lash", "=": "lash", "(": "lash", ")": "lash", "'": "lash",
+            "-": "lash", "o": "iris", "*": "shine", "@": "pupil"}
+
+def _eye_rows(open_=True, gx=0, gy=0):
+    """Three rows per eye. gx looks left (-1) or right (1); gy up (-1) or down (1)."""
+    if not open_:
+        return ("           ", " '-.___.-' ", "           ")     # a happy closed arc
+    def place(line, seq, at):
+        chars = list(line)
+        for i, ch in enumerate(seq):
+            if 0 <= at + i < len(chars):
+                chars[at + i] = ch
+        return "".join(chars)
+    if gy > 0:                                                  # looking down: lids lower
+        return ("           ", " _.=====._ ", place(" '-------' ", "o*@o", 3 + gx))
+    top = " _.=====._ "
+    mid = place("(         )", "o*@@o", 3 + gx)
+    low = place(" '-------' ", "ooo", 4 + gx)
+    if gy < 0:                                                  # looking up: the iris rises
+        top, low = place(top, "o@o", 4 + gx), " '-.___.-' "
+    return (top, mid, low)
+
+def draw_eyes(rows, open_=True, gx=0, gy=0):
+    er = row_of(Y0 - 0.18 * A)
+    lines = _eye_rows(open_, gx, gy)
+    for su in (-0.40, 0.40):
+        c0 = x_col(su * W0) - 5
+        for i, line in enumerate(lines):
+            for j, ch in enumerate(line):
+                if ch == " ":
+                    if i == 1 and line.startswith("("):
+                        _put(rows, er - 1 + i, c0 + j, " ", "white")
+                    continue
+                _put(rows, er - 1 + i, c0 + j, ch, EYE_KIND.get(ch, "lash"))
+
+def draw_mouth(rows, jaw):
+    """A small, gentle smile with dimples - it opens only a little to talk."""
+    mr = row_of(Y0 + 0.40 * A)
+    cl, cr = COLS // 2 - 3, COLS // 2 + 2
+    _put(rows, mr, cl - 2, "(", "dimple"); _put(rows, mr, cr + 2, ")", "dimple")
+    _put(rows, mr, cl, "\\", "lip"); _put(rows, mr, cr, "/", "lip")
+    inner = "=" if jaw >= 0.2 else "_"
+    for c in range(cl + 1, cr):
+        _put(rows, mr, c, inner, "teeth" if inner == "=" else "lip")
+    if jaw >= 0.6:
+        _put(rows, mr + 1, cl + 1, "\\", "lip"); _put(rows, mr + 1, cr - 1, "/", "lip")
+        for c in range(cl + 2, cr - 1):
+            _put(rows, mr + 1, c, "_", "lip")
+
+# ---------------------------------------------------------------- head movement
+def tilt(rows, amount):
+    """Tilt the head: rows above the neck slide sideways in proportion to their
+    height. amount is columns at the crown; positive leans left."""
+    k_top = int(round(amount))
+    if not k_top:
+        return rows
+    out, blank = [], (" ", "bg")
+    for r, row in enumerate(rows):
+        k = int(round(amount * (NECK_ROW - r) / NECK_ROW)) if r < NECK_ROW else 0
+        if k > 0:
+            row = row[k:] + [blank] * k
+        elif k < 0:
+            row = [blank] * (-k) + row[:k]
+        out.append(row)
+    return out
+
+def breathe(rows, settled):
+    """Breathing: on the out-breath the head settles one row; the shoulders stay."""
+    if not settled:
+        return rows
+    return [[(" ", "bg")] * COLS] + rows[:NECK_ROW - 1] + rows[NECK_ROW:]
+
+def compose(jaw=0.0, open_=True, gx=0, gy=0, brows=(0, 0, 0)):
+    rows = [list(r) for r in base_rows()]
+    draw_brows(rows, *brows)
+    draw_eyes(rows, open_, gx, gy)
+    draw_mouth(rows, jaw)
+    return rows
+
+def frame(jaw, eyes_open=True):
+    return compose(jaw, eyes_open)
+
 def frames():
-    """Every mouth step, eyes open and shut - computed once at startup."""
     return {(j, e): frame(j / (JAW_STEPS - 1), e) for j in range(JAW_STEPS) for e in (True, False)}
 
 if __name__ == "__main__":
-    for label, jaw, eyes in (("smiling, mouth closed", 0.0, True), ("speaking, mouth open", 1.0, True)):
+    shots = [("neutral", dict()),
+             ("looks left, brows up", dict(gx=-1, brows=(1, 1, 0))),
+             ("looks up, one brow", dict(gy=-1, brows=(0, 1, 0))),
+             ("looks down, focused", dict(gy=1, brows=(0, 0, -1)))]
+    for label, kw in shots:
+        rows = compose(**kw)
         print(f"--- {label} ---")
-        for row in frame(jaw, eyes):
-            print("".join(ch for ch, _ in row).rstrip())
+        for r in range(9, 17):
+            print("".join(ch for ch, _ in rows[r][14:62]).rstrip())
+    print("--- tilted 3 columns, breathing out ---")
+    for row in breathe(tilt(compose(jaw=0.8), 3), True)[:30]:
+        print("".join(ch for ch, _ in row).rstrip())

@@ -101,21 +101,19 @@ button("✕", close, FG_PAST, 12)   # stopping the voice is what ✕ must mean
 button("■", lambda: say("--hush"))               # stop speaking for good
 btn_play = button("❚❚", lambda: say("--resume" if PAUSED.exists() else "--pause"))
 
-# ---- the face: a composed executive under the transcript (bin/face.py) -----
+# ---- the face (bin/face.py), brought to life -------------------------------
 import face
-FACE_FRAMES = face.frames()                       # every mouth step, eyes open and shut
+BASE = face.base_rows()                            # skin, hair, clothes; features drawn per frame
 
 def _darker(hexcol, f=0.72):
     r, g, b = (int(hexcol[i:i + 2], 16) for i in (1, 3, 5))
     return "#%02x%02x%02x" % (int(r * f), int(g * f), int(b * f))
 
-PALETTE = {                                       # the window's blues, by part of the picture
-    "s0": "#1f2f52", "s1": "#34508c", "s2": "#5a7fcf", "s3": ACCENT, "s4": "#d2e0ff",   # skin
-    "cable": "#2f4f96", "cable2": "#1e3466", "node": "#9fbcff", "pulse": "#d6e4ff",   # cable hair
-    "iris": "#6f9dff", "pupil": "#0f1a33", "white": "#b8cbef",   # anime eyes: bright iris,
-    "shine": "#ffffff", "lash": "#0c1428", "dimple": "#2a4478",   # a white highlight, dark lashes
-    "cap": "#16264a",
-    "lid": "#16244a", "brow": "#2a4478",
+PALETTE = {                                        # the window's blues, by part of the picture
+    "s0": "#1f2f52", "s1": "#34508c", "s2": "#5a7fcf", "s3": ACCENT, "s4": "#d2e0ff",
+    "cable": "#2f4f96", "cable2": "#1e3466", "node": "#9fbcff", "pulse": "#d6e4ff", "cap": "#16264a",
+    "iris": "#6f9dff", "pupil": "#0f1a33", "white": "#b8cbef", "shine": "#ffffff",
+    "lash": "#0c1428", "brow": "#2a4478", "dimple": "#2a4478",
     "lip": "#b3c9ff", "void": "#0b1224", "teeth": "#e6eeff",
     "cloth": "#1a2744", "lapel": "#5a7fcf", "shirt": "#d2e0ff", "bg": BG,
 }
@@ -125,17 +123,67 @@ head = tk.Text(root, bg=BG, bd=0, highlightthickness=0, height=face.ROWS, width=
 head.pack(side="bottom", pady=(0, 10))
 for kind, colour in PALETTE.items():
     head.tag_config(kind, foreground=colour)
-    head.tag_config(kind + "_scan", foreground=_darker(colour, 0.88))   # faint scanlines
-    head.tag_config(kind + "_dim", foreground=_darker(colour, 0.50))    # paused
-blink = {"until": 0.0, "next": time.time() + random.uniform(2, 5)}
+    head.tag_config(kind + "_scan", foreground=_darker(colour, 0.88))
+    head.tag_config(kind + "_dim", foreground=_darker(colour, 0.50))
 
-def render_head(level, paused):
+class Life:
+    """What makes her look alive rather than animated: glances, irregular
+    blinks, brows that react, a slowly changing head tilt, breathing."""
+    def __init__(self):
+        now = time.time()
+        self.gaze, self.gaze_until = (0, 0), now
+        self.blink_until, self.next_blink = 0.0, now + random.uniform(2, 5)
+        self.brows, self.brows_until = (0, 0, 0), 0.0
+        self.tilt, self.tilt_target, self.next_tilt = 0.0, 0.0, now + random.uniform(3, 7)
+        self.index, self.breath0 = None, now
+
+    def update(self, now, st, paused, level):
+        current = (st or {}).get("current", "").rstrip()
+        asking = current.endswith("?")
+        if now >= self.next_blink:                                  # irregular, sometimes double
+            self.blink_until = now + 0.12
+            self.next_blink = now + (0.28 if random.random() < 0.15 else random.uniform(2.0, 6.5))
+        index = (st or {}).get("index")
+        if index is not None and index != self.index:               # a new sentence
+            self.index = index
+            if not paused:
+                self.gaze, self.gaze_until = (0, -1), now + 0.45    # glance up at the transcript
+                if asking:
+                    self.brows, self.brows_until = (1, 1, 0), now + 1.6
+                    self.tilt_target = random.choice((-3.0, 3.0))
+                elif random.random() < 0.35:
+                    self.brows, self.brows_until = (1, 1, 0), now + 0.5
+        if paused:
+            self.gaze, self.gaze_until = (0, 0), now + 0.3          # listening: eyes on you
+        elif now >= self.gaze_until:
+            r = random.random()
+            self.gaze = (0, 0) if r < 0.60 else (-1, 0) if r < 0.78 else (1, 0) if r < 0.96 else (0, 1)
+            self.gaze_until = now + (random.uniform(1.2, 3.0) if self.gaze == (0, 0) else random.uniform(0.35, 0.9))
+        if now >= self.brows_until:
+            self.brows = (0, 0, 0)
+            if not paused and level > 0.85 and random.random() < 0.08:
+                self.brows, self.brows_until = (1, 1, 0), now + 0.35    # weight on a loud syllable
+            elif random.random() < 0.004:
+                self.brows, self.brows_until = random.choice(((1, 0, 0), (0, 1, 0))), now + 1.2
+        if now >= self.next_tilt:
+            self.tilt_target = random.choice((-2.5, -1.5, 0.0, 0.0, 1.5, 2.5))
+            self.next_tilt = now + random.uniform(3, 8)
+        self.tilt += (self.tilt_target - self.tilt) * 0.08          # ease, never snap
+
+    def breathing_out(self, now):
+        return (now - self.breath0) % 4.8 > 2.6
+
+life = Life()
+
+def render_head(level, paused, st=None):
     now = time.time()
-    if now >= blink["next"]:
-        blink["until"], blink["next"] = now + 0.13, now + random.uniform(3, 7)
-    eyes = not (paused or now < blink["until"])
+    life.update(now, st, paused, level)
+    rows = [list(r) for r in BASE]
+    face.draw_brows(rows, *life.brows)
+    face.draw_eyes(rows, now >= life.blink_until, *life.gaze)
     step = 0 if paused else min(face.JAW_STEPS - 1, int(level * face.JAW_STEPS))
-    rows = FACE_FRAMES[(step, eyes)]
+    face.draw_mouth(rows, step / (face.JAW_STEPS - 1))
+    rows = face.breathe(face.tilt(rows, life.tilt), life.breathing_out(now))
     phase = int(now * 10)                             # light pulses run down the cables
     args = []
     for r, row in enumerate(rows):
@@ -257,7 +305,7 @@ def tick():
             txt.insert("end", line + "\n\n", tag)
         txt.config(state="disabled")
         txt.see(f"{max(1, 2*i+1)}.0")
-    render_head(mouth_level(st, paused), paused)
+    render_head(mouth_level(st, paused), paused, st)
     root.after(80, tick)
 
 def join_all_spaces():
