@@ -1,112 +1,183 @@
-"""A SHODAN-style face in text: an original, procedurally shaded mask.
+"""The assistant's face, in text: a composed woman in her fifties, an executive.
 
-The face is a height field - skull, angular jaw, a brow ridge that dips toward
-the centre, deep sockets, cheekbones over hollow cheeks, a nose ridge, lips -
-lit from the upper left and shaded into a character ramp. One side breaks into
-circuitry and cables. The mouth cavity opens with the voice's loudness.
+Procedurally shaded, not drawn: the face is a height field lit softly from the
+front and shaded into a character ramp. A sleek bob with a side-swept fringe,
+groomed low-set brows, almond eyes, defined cheekbones, a straight nose, firm
+lips, faint laugh lines, and a blazer with a shirt collar. The mouth opens with
+the voice's loudness; the eyes blink.
 
-No Tk here, so it can be previewed in a terminal:  python3 bin/face.py
+No Tk here, so it previews in a terminal:  python3 bin/face.py
 """
 import math
 
-ROWS, COLS = 24, 60
-CELL = 0.5                      # a character cell is about half as wide as it is tall
+ROWS, COLS = 36, 76
+CELL = 0.5                       # a character cell is about half as wide as tall
 RAMP = " .:-=+*#%@"
-CIRCUIT = "═║╬┼╪─│╫"
 JAW_STEPS = 6
+
+# layout, in grid units: y runs -1 (top) to 1 (bottom); x is squeezed by CELL
+Y0, A = -0.08, 0.60              # face centre and half-height (hairline to chin)
+W0 = 0.42                        # face half-width at the cheekbones
 
 def _g(x, y, cx, cy, rx, ry):
     return math.exp(-(((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2))
 
-def _sig(v):
-    return 1.0 / (1.0 + math.exp(-v))
+def _clamp(v, lo=0.0, hi=1.0):
+    return max(lo, min(hi, v))
 
-def half_width(y):
-    if y < -0.62:                                   # no skull dome: cables grow from the brow
+def face_half_width(y):
+    t = (y - Y0) / A
+    if t <= -1 or t >= 1:
         return 0.0
-    if y < 0.06:                                    # temples to cheekbones
-        return 0.62 + 0.04 * math.exp(-((y + 0.02) / 0.10) ** 2)
-    t = (y - 0.06) / 0.94                           # hard taper to a narrow chin
-    return max(0.0, 0.62 - 0.46 * t ** 1.15)
+    if t < 0:
+        return W0 * math.sqrt(1 - t * t) ** 0.8
+    return W0 * (1 - t ** 1.8) ** 0.62        # full cheeks, a defined jaw, a rounded chin
 
 def mouth(jaw):
-    h = 0.035 + 0.19 * jaw                          # opening height
-    return 0.54, h                                  # top of the opening, height
+    t = 0.40                                   # mouth line, in face units
+    return t, 0.012 + 0.075 * jaw              # centre line, opening half-height
 
-def height(x, y, jaw):
-    w = half_width(y)
+def face_height(x, y, jaw):
+    w = face_half_width(y)
     if w <= 0 or abs(x) >= w:
         return None
-    u = x / w
-    z = math.sqrt(max(0.0, 1 - u * u)) * 0.85
-    yb = -0.40 + 0.14 * abs(x)                      # the glare: brow dips to the centre
-    z += 0.22 * math.exp(-((y - yb) / 0.045) ** 2) * (1 if abs(x) < 0.55 else 0)
-    for sx in (-0.28, 0.28):
-        z -= 0.34 * _g(x, y, sx, -0.21, 0.12, 0.065)          # deep sockets
-        z += 0.15 * _g(x, y, sx * 1.45, 0.02, 0.10, 0.07)     # cheekbones
-        z -= 0.18 * _g(x, y, sx * 1.45, 0.40, 0.11, 0.17)     # hollow cheeks
-    z += 0.26 * math.exp(-(x / 0.05) ** 2) * _sig((y + 0.12) / 0.025) * _sig((0.30 - y) / 0.02)
-    z += 0.10 * _g(x, y, 0.0, 0.29, 0.07, 0.04)               # nose tip
-    for sx in (-0.065, 0.065):
-        z -= 0.12 * _g(x, y, sx, 0.345, 0.03, 0.022)          # nostrils
-    top, h = mouth(jaw)
-    z += 0.14 * _g(x, y, 0.0, top - 0.025, 0.21, 0.03)        # upper lip
-    z += 0.15 * _g(x, y, 0.0, top + h + 0.035, 0.19, 0.035)   # lower lip, drops with the jaw
-    z += 0.11 * _g(x, y, 0.0, 0.90, 0.11, 0.06)               # chin
+    t, u = (y - Y0) / A, x / W0
+    z = math.sqrt(max(0.0, 1 - (x / w) ** 2)) * 0.8
+    for su in (-0.42, 0.42):
+        z -= 0.10 * _g(u, t, su, -0.18, 0.24, 0.08)     # shallow eye hollows
+        z += 0.08 * _g(u, t, su * 1.35, 0.02, 0.18, 0.10)  # cheekbones
+    z += 0.16 * math.exp(-(u / 0.07) ** 2) * _clamp((t + 0.16) / 0.06) * _clamp((0.20 - t) / 0.03)
+    z += 0.06 * _g(u, t, 0.0, 0.18, 0.10, 0.05)          # nose tip
+    mt, mh = mouth(jaw)
+    z += 0.05 * _g(u, t, 0.0, mt - mh - 0.03, 0.26, 0.03)  # upper lip
+    z += 0.06 * _g(u, t, 0.0, mt + mh + 0.035, 0.22, 0.035)  # lower lip
+    z += 0.05 * _g(u, t, 0.0, 0.86, 0.14, 0.07)          # chin
     return z
 
+def hair_half_width(y):
+    top = -0.93
+    if y < top:
+        return 0.0
+    if y < -0.66:                                           # a rounded crown
+        k = (y - top) / (-0.66 - top)
+        return 0.53 * math.sin(k * math.pi / 2) ** 0.7
+    w = 0.53 + 0.05 * math.exp(-((y + 0.40) / 0.30) ** 2)   # a little volume at the temples
+    if y > 0.12:
+        w -= 0.07 * ((y - 0.12) / 0.20) ** 2                # the ends curve under
+    return max(0.0, w)
+
+def in_hair(x, y):
+    """A sleek bob, longer toward the front, with a fringe swept from one side."""
+    if abs(x) >= hair_half_width(y):
+        return False
+    if y > 0.30 + 0.08 * _clamp(1 - abs(x) / 0.55):        # A-line hem near the jaw
+        return False
+    fringe = -0.50 - 0.20 * _clamp((x + 0.40) / 0.80)
+    return face_half_width(y) <= abs(x) or y < fringe
+
+def hair_shade(x, y):
+    sheen = (_g(x, y, -0.15, -0.78, 0.20, 0.06)             # light across the crown
+             + 0.5 * _g(x, y, 0.40, -0.35, 0.05, 0.25)       # and down each side
+             + 0.4 * _g(x, y, -0.42, -0.30, 0.05, 0.25))
+    strands = 0.10 * math.sin(x * 55 + y * 6)                # combed lines
+    return _clamp(0.20 + 0.55 * sheen + strands - 0.12 * _clamp(abs(x) / 0.55))
+
+def body(x, y):
+    """Neck, blazer and shirt collar. Returns (kind, brightness) or None."""
+    if 0.46 < y < 0.70 and abs(x) < 0.13:
+        shade = 0.30 + 0.28 * math.cos(x / 0.13 * math.pi / 2)
+        return "s", shade * (0.6 if y < 0.53 else 1.0)       # shadow under the chin
+    if y >= 0.64:
+        if abs(x) > min(1.05, 0.24 + (y - 0.64) * 2.6):
+            return None
+        v = 0.03 + 0.30 * (y - 0.64) / 0.36                 # the V of the lapels widens downward
+        if abs(x) < v:
+            return "shirt", 0.85
+        if abs(x) < v + 0.05:
+            return "lapel", 0.9
+        return "cloth", 0.25 + 0.15 * (1 - abs(x) / 1.05)
+    return None
+
 def frame(jaw, eyes_open=True):
-    """One frame: ROWS lists of (char, kind). kind is bg, s0-s4, eye, void,
-    circuit or cable."""
-    L = (-0.28, -0.42, 0.86)                        # mostly frontal, a little from the upper left
+    """ROWS lists of (char, kind). Kinds: bg, s0-s4 skin, h0-h3 hair, iris,
+    white, lid, brow, lip, void, teeth, cloth, lapel, shirt."""
+    L = (-0.22, -0.34, 0.91)
     n = math.sqrt(sum(v * v for v in L)); L = tuple(v / n for v in L)
     dx = 2.0 / COLS * (COLS / ROWS) * CELL
     dy = 2.0 / ROWS
-    top, h = mouth(jaw)
+    mt, mh = mouth(jaw)
     out = []
     for r in range(ROWS):
         y = -1 + (r + 0.5) * dy
-        seam = 0.24 + 0.05 * math.sin(r * 1.7)      # jagged edge where the face turns to machine
         row = []
         for c in range(COLS):
             x = (-1 + (c + 0.5) * 2.0 / COLS) * (COLS / ROWS) * CELL
-            z = height(x, y, jaw)
-            if z is None and y < -0.60 and abs(x) < 0.58 and c % 3 == 0 and (r + c) % 5:
-                row.append(("┃" if c % 6 == 0 else "│", "cable")); continue
+            t, u = (y - Y0) / A, x / W0
+            z = face_height(x, y, jaw)
+            if in_hair(x, y):
+                b = hair_shade(x, y)
+                row.append((RAMP[1 + int(b * 6)], f"h{min(3, int(b * 4))}")); continue
             if z is None:
-                cable = (y > 0.30 and any(abs(x - cx) < dx * 0.6 for cx in (0.50, 0.58, -0.54))
-                         and abs(x) < half_width(0.06) + 0.10)
-                row.append(("│", "cable") if cable else (" ", "bg"))
-                continue
-            my = top + h / 2
-            if abs(y - my) < h / 2 and abs(x) < 0.20 * math.sqrt(max(0.0, 1 - ((y - my) / (h / 2 + 1e-6)) ** 2)):
-                row.append((" ", "void")); continue
-            if any(_g(x, y, sx, -0.21, 0.065, 0.04) > 0.45 for sx in (-0.28, 0.28)):
-                row.append(("@", "eye") if eyes_open else ("-", "s1")); continue
-            zx = (height(x + dx, y, jaw) or 0) - (height(x - dx, y, jaw) or 0)
-            zy = (height(x, y + dy, jaw) or 0) - (height(x, y - dy, jaw) or 0)
-            nx, ny, nz = -zx / (2 * dx), -zy / (2 * dy), 1.0
-            nn = math.sqrt(nx * nx + ny * ny + nz * nz)
-            lit = max(0.0, (nx * L[0] + ny * L[1] + nz * L[2]) / nn)
-            b = (0.16 + 0.84 * lit) * (0.45 + 0.55 * max(0.0, min(1.0, z)))
-            b = max(0.08, min(1.0, b ** 0.9))       # never fully black inside the silhouette
-            if x > seam and -0.70 < y < 0.84:       # the machine half: panel lines over dim skin
-                on_h = r % 4 == 1
-                on_v = c % 7 == 3
-                if on_h or on_v:
-                    ch = "╬" if (on_h and on_v) else ("═" if on_h else "║")
-                    row.append((ch, "circuit")); continue
-                b *= 0.55
-            row.append((RAMP[min(len(RAMP) - 1, int(b * len(RAMP)))], f"s{min(4, int(b * 5))}"))
+                bd = body(x, y)
+                if bd:
+                    kind, b = bd
+                    ch = {"shirt": "#", "lapel": "/" if x < 0 else "\\"}.get(kind, RAMP[min(9, int(b * 10))])
+                    row.append((ch, f"s{min(4, int(b * 5))}" if kind == "s" else kind)); continue
+                row.append((" ", "bg")); continue
+            # eyes: almond shapes with iris, whites and a lid line
+            eye = None
+            for su in (-0.42, 0.42):
+                du, dt = (u - su) / 0.20, (t + 0.18) / 0.050
+                if du * du + dt * dt < 1.0:
+                    if not eyes_open:
+                        eye = ("-", "lid") if abs(dt) < 0.45 else None
+                    elif dt < -0.55:
+                        eye = ("_", "lid")
+                    elif abs(du) < 0.33:
+                        eye = ("@", "iris") if abs(du) < 0.14 and dt < 0.2 else ("O", "iris")
+                    else:
+                        eye = ("=", "white")
+                    break
+            if eye:
+                row.append(eye); continue
+            # brows: groomed, arched, set low at the inner end
+            for su in (-1, 1):
+                au = su * u
+                if 0.18 < au < 0.74:
+                    tb = -0.31 - 0.06 * math.exp(-((au - 0.50) / 0.16) ** 2)
+                    if abs(t - tb) < 0.022:
+                        eye = ("~", "brow")
+            if eye:
+                row.append(eye); continue
+            # mouth: firm lips; the opening grows with the jaw
+            if abs(u) < 0.26 * math.sqrt(max(0.0, 1 - (u / 0.26) ** 4)):
+                if abs(t - mt) < mh and abs(u) < 0.20:
+                    row_h = dy / A                      # one text row, in face units
+                    teeth = mh > 0.03 and abs((t - row_h) - mt) >= mh   # top row of the opening
+                    row.append(("=", "teeth") if teeth else (" ", "void")); continue
+                if -0.035 < t - mt + mh < 0 or 0 < t - mt - mh < 0.045:
+                    row.append(("=", "lip")); continue
+            zx = (face_height(x + dx, y, jaw) or 0) - (face_height(x - dx, y, jaw) or 0)
+            zy = (face_height(x, y + dy, jaw) or 0) - (face_height(x, y - dy, jaw) or 0)
+            nx, ny = -zx / (2 * dx), -zy / (2 * dy)
+            nn = math.sqrt(nx * nx + ny * ny + 1)
+            lit = _clamp((nx * L[0] + ny * L[1] + L[2]) / nn)
+            b = _clamp((0.28 + 0.72 * lit) * (0.55 + 0.45 * _clamp(z)))
+            # faint laugh lines, nose to mouth corners
+            for su in (-1, 1):
+                lu, lt = 0.10 + 0.16 * _clamp((t - 0.20) / 0.22), 0.20 + 0.22 * _clamp((su * u - 0.10) / 0.16)
+                if 0.20 < t < 0.44 and abs(su * u - lu) < 0.025:
+                    b *= 0.80
+            row.append((RAMP[min(9, int(b * 10))], f"s{min(4, int(b * 5))}"))
         out.append(row)
     return out
 
 def frames():
-    """Every mouth step, eyes open and closed - computed once at startup."""
+    """Every mouth step, eyes open and shut - computed once at startup."""
     return {(j, e): frame(j / (JAW_STEPS - 1), e) for j in range(JAW_STEPS) for e in (True, False)}
 
 if __name__ == "__main__":
-    for label, jaw, eyes in (("mouth closed", 0.0, True), ("mouth open", 1.0, True)):
+    for label, jaw, eyes in (("speaking, mouth open", 1.0, True), ("closed, blink", 0.0, False)):
         print(f"--- {label} ---")
         for row in frame(jaw, eyes):
             print("".join(ch for ch, _ in row).rstrip())

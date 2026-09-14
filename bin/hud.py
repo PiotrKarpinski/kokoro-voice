@@ -45,7 +45,7 @@ root.overrideredirect(True)
 root.attributes("-alpha", 0.0)         # invisible until there is speech; never withdrawn
 root.configure(bg=BG)
 
-W, H = 470, 480
+W, H = 470, 600
 DEFAULT_POS = (root.winfo_screenwidth() - W - 28, 48)
 
 def target_pos():
@@ -101,7 +101,7 @@ button("✕", close, FG_PAST, 12)   # stopping the voice is what ✕ must mean
 button("■", lambda: say("--hush"))               # stop speaking for good
 btn_play = button("❚❚", lambda: say("--resume" if PAUSED.exists() else "--pause"))
 
-# ---- the face: a SHODAN-style shaded mask under the transcript (bin/face.py) -
+# ---- the face: a composed executive under the transcript (bin/face.py) -----
 import face
 FACE_FRAMES = face.frames()                       # every mouth step, eyes open and shut
 
@@ -109,40 +109,35 @@ def _darker(hexcol, f=0.72):
     r, g, b = (int(hexcol[i:i + 2], 16) for i in (1, 3, 5))
     return "#%02x%02x%02x" % (int(r * f), int(g * f), int(b * f))
 
-BLUES = {"s0": "#15213a", "s1": "#223a6b", "s2": "#3a5ea8", "s3": ACCENT, "s4": "#c9daff",
-         "eye": "#f2f7ff", "circuit": "#4c78d6", "cable": "#2b4d8f", "void": BG, "bg": BG,
-         "glitch": "#9fbcff"}
+PALETTE = {                                       # the window's blues, by part of the picture
+    "s0": "#1f2f52", "s1": "#34508c", "s2": "#5a7fcf", "s3": ACCENT, "s4": "#d2e0ff",   # skin
+    "h0": "#0f1830", "h1": "#1a2a52", "h2": "#2e4a8a", "h3": "#5577c4",                # hair
+    "iris": "#eef4ff", "white": "#9db8f0", "lid": "#1a2a52", "brow": "#243a6b",
+    "lip": "#8fb0ff", "void": "#0b1224", "teeth": "#dbe6ff",
+    "cloth": "#1a2744", "lapel": "#5a7fcf", "shirt": "#d2e0ff", "bg": BG,
+}
 head = tk.Text(root, bg=BG, bd=0, highlightthickness=0, height=face.ROWS, width=face.COLS,
                font=("Menlo", 7), cursor="arrow", padx=0, pady=0, wrap="none",
                spacing1=0, spacing2=0, spacing3=0)
 head.pack(side="bottom", pady=(0, 10))
-for kind, colour in BLUES.items():
+for kind, colour in PALETTE.items():
     head.tag_config(kind, foreground=colour)
-    head.tag_config(kind + "_scan", foreground=_darker(colour, 0.78))   # CRT scanlines
-    head.tag_config(kind + "_dim", foreground=_darker(colour, 0.45))    # paused
+    head.tag_config(kind + "_scan", foreground=_darker(colour, 0.88))   # faint scanlines
+    head.tag_config(kind + "_dim", foreground=_darker(colour, 0.50))    # paused
 blink = {"until": 0.0, "next": time.time() + random.uniform(2, 5)}
 
 def render_head(level, paused):
     now = time.time()
     if now >= blink["next"]:
-        blink["until"], blink["next"] = now + 0.12, now + random.uniform(3, 7)
+        blink["until"], blink["next"] = now + 0.13, now + random.uniform(3, 7)
     eyes = not (paused or now < blink["until"])
     step = 0 if paused else min(face.JAW_STEPS - 1, int(level * face.JAW_STEPS))
     rows = FACE_FRAMES[(step, eyes)]
-    glitch = 0.0 if paused else 0.03 + 0.30 * level     # louder -> worse signal
     args = []
     for r, row in enumerate(rows):
-        cells = row
-        if random.random() < glitch:                     # the row slips sideways
-            k = random.choice((-2, -1, 1, 2))
-            cells = row[k:] + row[:k]
-        if random.random() < glitch * 0.35:              # and sometimes tears
-            a = random.randrange(0, face.COLS - 6)
-            cells = cells[:a] + [("▒", "glitch")] * random.randint(3, 6) + cells[a + 6:]
-            cells = cells[:face.COLS]
         suffix = "_dim" if paused else ("_scan" if r % 2 else "")
         run, tag = "", None
-        for ch, kind in cells:
+        for ch, kind in row:
             t = kind + suffix
             if t != tag and run:
                 args += [run, tag]; run = ""
