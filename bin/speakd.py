@@ -45,7 +45,7 @@ ENV_HZ    = 20                    # loudness samples per second, for the mouth
 
 import numpy as np, torch, soundfile as sf
 from kokoro import KPipeline
-from normalize import plain, segments, pause_after, sentence_speed
+from normalize import plain, segments, pause_after, sentence_speed, parse_voice
 
 GAP = np.zeros(int(GAP_S * SR), dtype="float32")
 
@@ -65,6 +65,19 @@ def pipeline(lang):
     return pipes[lang]
 
 pipeline("a")            # preload the common case before accepting anyone
+
+_VOICES = {}
+def voice_for(spec):
+    """A voice name, or a weighted blend of several: their style vectors
+    averaged once and cached. A blend costs one small download per extra voice."""
+    if spec not in _VOICES:
+        mix = parse_voice(spec)
+        if len(mix) == 1:
+            _VOICES[spec] = mix[0][0]
+        else:
+            p = pipeline(mix[0][0][0])
+            _VOICES[spec] = sum(w * p.load_voice(name) for name, w in mix)
+    return _VOICES[spec]
 
 # ---------------------------------------------------------------- jobs
 class Job:
@@ -129,7 +142,7 @@ def generator():
                         pause = pause_after(job.marked[i - 1]) if i else 0.0
                         for j, (text, emph) in enumerate(segments(sentence)):
                             for _, _, audio in pipeline(job.voice[0])(
-                                    text, voice=job.voice, speed=speed * (0.95 if emph else 1.0),
+                                    text, voice=voice_for(job.voice), speed=speed * (0.95 if emph else 1.0),
                                     split_pattern=r"\n+"):
                                 if hushed(job) or job.done.is_set():
                                     raise _Stop

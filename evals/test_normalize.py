@@ -43,7 +43,13 @@ CASES = [
     ("the API returned 404",                  "API returned 404",           "file"),
 ]
 
-from normalize import segments, pause_after, sentence_speed, plain
+from normalize import segments, pause_after, sentence_speed, plain, parse_voice
+def _raises(fn, *args):
+    try:
+        fn(*args); return False
+    except ValueError:
+        return True
+
 DELIVERY = [
     (segments("It is ⟪really⟫ fast."), [("It is", False), ("really", True), ("fast.", False)]),
     (pause_after("Shall we ship it?") > pause_after("Shipped."), True),
@@ -51,6 +57,9 @@ DELIVERY = [
     ([sentence_speed(i, 4) for i in range(4)], [0.97, 1.0, 1.0, 0.97]),
     ([sentence_speed(i, 2) for i in range(2)], [1.0, 1.0]),
     (plain("It is ⟪really⟫ fast."), "It is really fast."),
+    (parse_voice("af_heart"), [("af_heart", 1.0)]),
+    ([(n, round(w, 3)) for n, w in parse_voice("af_heart:7,bf_emma:3")], [("af_heart", 0.7), ("bf_emma", 0.3)]),
+    ((lambda: (parse_voice("not a voice"), "accepted"))() if False else "raises" if _raises(parse_voice, "not a voice") else "accepted", "raises"),
 ]
 
 fails = 0

@@ -38,6 +38,9 @@ if run "should not speak" 2>/dev/null; then bad "off refuses to speak"; else ok 
 check "off records nothing" [ "$(lines)" = "$N" ]
 check "switching off also stops playback" grep -q '"kind": "hush"' "$T/dryrun.jsonl"
 run --set mode=on-request >/dev/null
+check "accepts a voice blend" sh -c "KOKORO_HOME='$T' '$K' --set voice=af_heart:0.7,bf_emma:0.3"
+if KOKORO_HOME="$T" "$K" --set voice="not a voice" >/dev/null 2>&1; then bad "rejects a bad voice"; else ok "rejects a bad voice"; fi
+KOKORO_HOME="$T" "$K" --set voice=af_heart >/dev/null
 run --hush >/dev/null
 check "control commands work in dry-run" [ "$(grep -c '"kind": "hush"' "$T/dryrun.jsonl")" -ge 2 ]
 

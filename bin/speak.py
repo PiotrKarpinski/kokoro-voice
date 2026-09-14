@@ -162,6 +162,12 @@ if a.set:
                      else type(d)(v)
         except ValueError:
             sys.exit(f"{k} expects a {type(d).__name__}")
+        if k == "voice":
+            from normalize import parse_voice
+            try:
+                parse_voice(CFG[k])
+            except ValueError as e:
+                sys.exit(f"voice: {e}. Use a name like af_heart, or a blend like af_heart:0.7,bf_emma:0.3")
         if k == "mode":
             if CFG[k] not in MODES:
                 sys.exit(f"mode must be one of: {', '.join(MODES)}")
@@ -496,7 +502,10 @@ def in_process():
     from kokoro import KPipeline
     tmp = tempfile.mkdtemp(prefix="speak."); tmpdirs.add(tmp)
     pipe = KPipeline(lang_code=a.voice[0], repo_id="hexgrad/Kokoro-82M")
-    for i, (_, _, audio) in enumerate(pipe(t.replace("⟪", "").replace("⟫", ""), voice=a.voice, speed=a.speed,
+    from normalize import parse_voice
+    mix = parse_voice(a.voice)
+    voice = mix[0][0] if len(mix) == 1 else sum(w * pipe.load_voice(n) for n, w in mix)
+    for i, (_, _, audio) in enumerate(pipe(t.replace("⟪", "").replace("⟫", ""), voice=voice, speed=a.speed,
                                            split_pattern=SPLIT)):
         if hushed():
             break

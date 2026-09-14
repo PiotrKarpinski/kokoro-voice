@@ -152,3 +152,28 @@ def pause_after(sentence):
 def sentence_speed(index, count):
     """Set it up and land it: the first and last sentence of a longer passage slower."""
     return 0.97 if count > 2 and index in (0, count - 1) else 1.0
+
+
+# ---------------------------------------------------------------- voices
+VOICE_NAME = re.compile(r"^[a-z][fm]_[a-z]+$")
+
+def parse_voice(spec):
+    """'af_heart', or a blend like 'af_heart:0.7,bf_emma:0.3' -> [(name, weight)]
+    with the weights normalised to sum to one."""
+    parts = []
+    for item in str(spec).split(","):
+        item = item.strip()
+        if not item:
+            continue
+        name, _, weight = item.partition(":")
+        name = name.strip()
+        if not VOICE_NAME.match(name):
+            raise ValueError(f"not a voice name: {name!r}")
+        w = float(weight) if weight.strip() else 1.0
+        if w <= 0:
+            raise ValueError(f"weight must be positive: {item!r}")
+        parts.append((name, w))
+    if not parts:
+        raise ValueError("no voice given")
+    total = sum(w for _, w in parts)
+    return [(name, w / total) for name, w in parts]

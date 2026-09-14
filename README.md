@@ -65,6 +65,7 @@ this" or "voice off". `/voice` on its own speaks a summary of the session.
 |---|---|
 | `kokoro --set mode=narrate` | same switch, from a terminal |
 | `kokoro --hud on` | floating transcript, always on top |
+| `kokoro --set voice=af_heart:0.7,bf_emma:0.3` | a blend of voices; any mix of Kokoro's voices |
 | `kokoro --config` | every setting, and which you have changed |
 | `hush` | stop it, instantly, from any terminal |
 | `kokoro --version` | plugin version, commit, and where code and data live |
