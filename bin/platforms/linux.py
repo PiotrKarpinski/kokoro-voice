@@ -35,3 +35,7 @@ def float_window(root):
     # desktop wants _NET_WM_STATE_STICKY via wmctrl or python-xlib; left out
     # deliberately rather than guessed at.
     pass
+
+def on_screen(x, y, w, h):
+    # No display enumeration yet; trust the saved position.
+    return True

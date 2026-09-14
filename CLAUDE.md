@@ -32,11 +32,14 @@ plugin from the marketplace: the hook fires twice and every skill appears twice.
     bin/speak.py        client: flags, config, flattening, archive
     bin/speakd.py       warm daemon: model in RAM, sentence streaming, bg queue
     bin/hud.py          floating transcript window
+    bin/normalize.py    ear rules in code: paths, units, dates, times, links
     bin/platforms/      ALL OS-specific code. darwin.py is the tested backend
-    hooks/voice-hook    injects narration mode and live speech position
+    hooks/voice-hook    injects the mode and live speech position each message
+    hooks/stop-hook     narrate mode: blocks a working turn with no spoken summary, once
     skills/voice/       the one skill: modes, ear rules, interrupts
     commands/voice.md   /voice [on|narrate|off|status|<text>]
-    evals/              run.py + cases.json + fixture/, dry-run graded
+    evals/              run.py + cases.json + fixture/, dry-run graded;
+                        test_normalize.py for the text rules, no model needed
 
 ## Checking a change
 

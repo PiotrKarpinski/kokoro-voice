@@ -36,6 +36,10 @@ measured against the phonemiser, not guessed. It gets them wrong silently.
 - **Dates and times in words.** "September eleventh", "half past five".
 - Acronyms (API, GDD, npm) and plain numbers are safe.
 
+`kokoro` also rewrites filenames, paths, units, dates, times and links before
+speaking, as a safety net. Still write for the ear: it can turn `player.gd` into
+"the player script", but only you know it is "the movement script".
+
 ## Speaking on request
 
 Compose a NEW text for speech. Never feed the chat answer into the voice. Lead
@@ -65,7 +69,8 @@ kokoro --bg --title "<subject>" "Found it - the timer resets on landing."
 ```
 
 **Summary.** When the task is done, queue one spoken summary written for the ear,
-100 to 180 words, with `--bg`. It plays after the beats.
+100 to 180 words, with `--bg`. It plays after the beats. If a turn that did real work ends
+without one, a Stop hook asks for it - so send it yourself rather than be asked.
 
 **Chat.** Answer exactly as you normally would. Narration is an extra channel.
 Do not paste the spoken summary into the chat as well.

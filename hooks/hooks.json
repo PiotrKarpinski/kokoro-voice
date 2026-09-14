@@ -1,10 +1,25 @@
 {
-  "description": "Carries narration mode and live speech position into each turn. Prints nothing when nothing is speaking.",
+  "description": "Carries the voice mode and live speech position into each turn, and makes narrate mode end work with a spoken summary.",
   "hooks": {
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/voice-hook\"", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/voice-hook\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-hook\"",
+            "timeout": 10
+          }
         ]
       }
     ]

@@ -50,8 +50,18 @@ else
   "$K/.venv/bin/pip" install -q "$SPACY_WHL"
 fi
 
-"$K/.venv/bin/python" -c "import tkinter" 2>/dev/null || {
-  echo "    WARNING: this Python has no tkinter, so the floating transcript"
+# `import tkinter` succeeds even when Tk cannot start, so actually start it -
+# with the same library hint the window uses.
+"$K/.venv/bin/python" - <<'PYTK' 2>/dev/null || {
+import os, pathlib, sys, tkinter
+for var, name, probe in (("TCL_LIBRARY", "tcl8.6", "init.tcl"), ("TK_LIBRARY", "tk8.6", "tk.tcl")):
+    for base in (sys.base_prefix, sys.prefix):
+        c = pathlib.Path(base)/"lib"/name
+        if not os.environ.get(var) and (c/probe).exists():
+            os.environ[var] = str(c)
+r = tkinter.Tk(); r.withdraw(); r.destroy()
+PYTK
+  echo "    WARNING: Tk cannot start in this Python, so the floating transcript"
   echo "    window will not run. Speech still works. Fix: brew install python-tk"; }
 
 echo "==> linking kokoro and hush into $BIN"

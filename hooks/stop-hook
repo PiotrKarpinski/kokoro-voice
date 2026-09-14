@@ -1,0 +1,86 @@
+#!/bin/sh
+# Stop hook. In narrate mode, a turn that did real work must end with a spoken
+# summary. If it didn't, block the stop once and ask for one. Everything else -
+# other modes, trivial answers, voice plumbing only, a second attempt - passes.
+K="${KOKORO_HOME:-$HOME/.kokoro}"
+INPUT=$(cat)
+KOKORO_STATE="$K" HOOK_INPUT="$INPUT" python3 - <<'PY'
+import datetime, json, os, pathlib, sys
+
+k = pathlib.Path(os.environ["KOKORO_STATE"])
+try:
+    inp = json.loads(os.environ.get("HOOK_INPUT") or "{}")
+except ValueError:
+    sys.exit(0)
+if inp.get("stop_hook_active"):          # we already asked once; never loop
+    sys.exit(0)
+
+try:
+    cfg = json.loads((k/"config.json").read_text())
+except Exception:
+    cfg = {}
+mode = cfg.get("mode") or ("narrate" if (k/".narrate").exists() else "on-request")
+if mode != "narrate":
+    sys.exit(0)
+
+tp = inp.get("transcript_path")
+if not tp or not os.path.exists(tp):
+    sys.exit(0)
+lines = []
+with open(tp) as fh:
+    for line in fh:
+        try:
+            lines.append(json.loads(line))
+        except ValueError:
+            pass
+
+def is_prompt(d):
+    if d.get("type") != "user" or d.get("isMeta") or d.get("isSidechain"):
+        return False
+    c = (d.get("message") or {}).get("content")
+    if isinstance(c, str):
+        return bool(c.strip())
+    if isinstance(c, list):
+        kinds = {b.get("type") for b in c if isinstance(b, dict)}
+        return "text" in kinds and "tool_result" not in kinds
+    return False
+
+start = max((i for i, d in enumerate(lines) if is_prompt(d)), default=None)
+if start is None:
+    sys.exit(0)
+
+# Voice plumbing is not work: switching modes or speaking must not demand a summary.
+work = 0
+for d in lines[start+1:]:
+    if d.get("type") != "assistant" or d.get("isSidechain"):
+        continue
+    for b in (d.get("message") or {}).get("content") or []:
+        if not isinstance(b, dict) or b.get("type") != "tool_use":
+            continue
+        cmd = json.dumps(b.get("input", {}))
+        if "kokoro" in cmd:
+            continue
+        work += 1
+if work == 0:
+    sys.exit(0)
+
+try:
+    t0 = datetime.datetime.fromisoformat(lines[start]["timestamp"].replace("Z", "+00:00")).timestamp()
+    last = float((k/".last-summary").read_text().strip())
+except Exception:
+    last, t0 = 0.0, 1.0
+if last >= t0:
+    sys.exit(0)
+
+print(json.dumps({
+    "decision": "block",
+    "reason": ("Voice is in narrate mode and this turn did real work, but no spoken "
+               "summary was queued. Queue one now: 100 to 180 words written for the "
+               "ear - no filenames, paths, code or flags - with "
+               "`kokoro --bg --title \"<three or four word subject>\"`. "
+               "If the user asked for no voice in this turn, skip it. Either way, "
+               "your final message must be your previous answer repeated exactly as "
+               "you gave it - the user reads only the last message, so do not replace "
+               "the answer with a note about the summary."),
+}))
+PY

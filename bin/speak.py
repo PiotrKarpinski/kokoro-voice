@@ -260,6 +260,10 @@ def start_daemon(wait=90):
         time.sleep(0.15)
     return None
 
+def hud_running():
+    return subprocess.run(["pgrep","-f","hud.py"],
+                          capture_output=True).returncode == 0
+
 if a.status:
     s = connect()
     if s:
@@ -271,20 +275,29 @@ if a.status:
         print(f"daemon: warm, {fresh}, {int(rss)/1024:.0f} MB resident")
     else:
         print("daemon: not running (next speak starts it, ~4s)")
+    if CFG["hud"]:
+        if hud_running():
+            print("window: running")
+        else:
+            why = ""
+            try:
+                tail = [l for l in (DATA/".hud.log").read_text().splitlines() if l.strip()]
+                why = tail[-1][:100] if tail else ""
+            except OSError:
+                pass
+            print("window: NOT running" + (f" - last error: {why}" if why else " (starts on next speech)"))
+    else:
+        print("window: off (kokoro --hud on)")
     sys.exit(0)
 
 if a.stop:
     print(f"stopped {stop_daemon()} daemon process(es)")
     sys.exit(0)
 
-def hud_running():
-    return subprocess.run(["pgrep","-f","hud.py"],
-                          capture_output=True).returncode == 0
-
 def hud_start():
     if not hud_running():
-        subprocess.Popen([sys.executable, str(HERE/"hud.py")], stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL, start_new_session=True)
+        subprocess.Popen([sys.executable, str(HERE/"hud.py")], stdout=open(DATA/".hud.log", "a"),
+                         stderr=subprocess.STDOUT, start_new_session=True)
 
 if a.hud:
     if a.hud == "on":
@@ -371,19 +384,16 @@ if CFG["mode"] == "off":
 raw = (DATA/"last-spoken.txt").read_text() if a.replay else \
       (" ".join(a.text) if a.text else sys.stdin.read())
 
-t = re.sub(r"```.*?```", " code block omitted. ", raw, flags=re.S)
-t = re.sub(r"`([^`]*)`", r"\1", t)
-t = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", t)
-t = re.sub(r"^\s*[-*+]\s+", "", t, flags=re.M)
-t = re.sub(r"^\s*#{1,6}\s*", "", t, flags=re.M)
-t = re.sub(r"~\s*(?=[\d.])", "about ", t)
-t = re.sub(r"\s*&&\s*", " and then ", t)
-t = re.sub(r"[*_~>|]", "", t)
-t = re.sub(r"\n{2,}", ". ", t)
-t = re.sub(r"\.(\s*\.)+", ".", t)
-t = re.sub(r"\s+", " ", t).strip()
+from normalize import for_ear           # the ear rules, enforced in code
+t = for_ear(raw)
 if not t:
     sys.exit("nothing to say")
+
+if len(t.split()) >= 40:                 # long enough to be a summary
+    try:
+        (DATA/".last-summary").write_text(str(time.time()))
+    except OSError:
+        pass
 
 if DRY:
     dry_log("speak", bg=bool(a.bg), title=globals().get("TITLE", ""), text=t,
@@ -415,11 +425,30 @@ if a.bg:
 
 # ------------------------------------------------------------------ playback
 q, parts, tmpdirs = queue.Queue(), [], set()
+SENTS = [x for x in re.split(SPLIT, t) if x.strip()]
+
+def publish(i):
+    try:
+        NOW.write_text(json.dumps({
+            "index": i, "total": len(SENTS),
+            "current": SENTS[i] if i < len(SENTS) else "",
+            "sentences": SENTS, "at": time.time(),
+            "title": globals().get("TITLE", ""), "pid": os.getpid()}))
+    except OSError:
+        pass
+
 def player():
+    i = 0
     while (p := q.get()) is not None:
         if hushed():
             continue                     # drain the rest without playing it
+        publish(i); i += 1
         platforms.play(p)
+    try:                                 # clear it only if it is still ours
+        if json.loads(NOW.read_text()).get("pid") == os.getpid():
+            NOW.unlink()
+    except (OSError, ValueError):
+        pass
 th = threading.Thread(target=player); th.start()
 
 def via_daemon():

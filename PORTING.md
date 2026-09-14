@@ -28,7 +28,9 @@ A backend is seven functions:
 | `background_app()` | stop the transcript window stealing focus |
 | `float_window(root)` | keep it above others, on every desktop |
 
-The last two may be no-ops — the window still works without them.
+The last two may be no-ops — the window still works without them. An optional
+`on_screen(x, y, w, h)` lets the window recover from an unplugged display;
+without it, saved positions are trusted.
 
 **If you are writing `if sys.platform` anywhere outside that package, that is
 the bug.** The rest of the codebase should never know what it is running on.

@@ -85,6 +85,15 @@ units out. Those rules are measured, not guessed — `~300 MB` is silently dropp
 by the phonemizer, `&&` becomes "and-and", and `player.gd` becomes "player dot
 gee dee".
 
+## The transcript window
+
+Off by default — `kokoro --hud on`. When on, it shows for every spoken line,
+whether queued with `--bg` or spoken directly, and hides when speech ends. It
+starts itself the next time anything is spoken, restarts when its code changes,
+and snaps back on screen if it was last left on a display that is no longer
+connected. It cannot appear if it is turned off, if Python's Tk is missing, or
+off macOS (where it runs without the float-above-everything behaviour).
+
 ## Known limits
 
 - macOS only, as above.

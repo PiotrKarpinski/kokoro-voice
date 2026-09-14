@@ -16,3 +16,7 @@ def pause_all():     raise NotImplementedError(_MSG)
 def resume_all():    raise NotImplementedError(_MSG)
 def background_app(): pass
 def float_window(root): pass
+
+def on_screen(x, y, w, h):
+    # No display enumeration yet; trust the saved position.
+    return True

@@ -4,7 +4,7 @@
 Reads the daemon's live position, so the current sentence is highlighted in sync
 with what you are hearing. Drag to move. Double-click to pause or resume.
 """
-import json, os, pathlib, sys, subprocess, sys, tkinter as tk, time
+import json, os, pathlib, subprocess, sys, tkinter as tk, time
 
 HERE   = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -23,6 +23,21 @@ def be_background_app():
     except Exception as e:
         print(f"policy: {e}", file=sys.stderr)
 
+def point_tk_at_its_libraries():
+    """uv's standalone Pythons ship Tcl/Tk inside the base install, but inside a
+    venv Tk does not reliably find them and dies with "Can't find a usable
+    init.tcl". It worked, then stopped, within one session. Say where they are
+    instead of hoping they are found."""
+    for var, name in (("TCL_LIBRARY", "tcl8.6"), ("TK_LIBRARY", "tk8.6")):
+        if os.environ.get(var):
+            continue
+        for base in (sys.base_prefix, sys.prefix):
+            cand = pathlib.Path(base)/"lib"/name
+            if (cand/("init.tcl" if name.startswith("tcl") else "tk.tcl")).exists():
+                os.environ[var] = str(cand)
+                break
+
+point_tk_at_its_libraries()
 root = tk.Tk()
 be_background_app()
 root.title("Transcript")
@@ -31,10 +46,16 @@ root.attributes("-topmost", True)
 root.configure(bg=BG)
 
 W, H = 470, 250
+DEFAULT_POS = (root.winfo_screenwidth() - W - 28, 48)
 try:
     x, y = json.loads(POS.read_text())
+    try:
+        if not platforms.on_screen(int(x), int(y), W, H):   # its monitor is gone
+            x, y = DEFAULT_POS
+    except Exception:
+        pass
 except Exception:
-    x, y = root.winfo_screenwidth() - W - 28, 48
+    x, y = DEFAULT_POS
 root.geometry(f"{W}x{H}+{int(x)}+{int(y)}")
 
 bar = tk.Frame(root, bg=BG, height=26)
