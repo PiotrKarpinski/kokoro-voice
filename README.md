@@ -45,8 +45,8 @@ The installer builds an isolated Python environment in `~/.kokoro`, installs
 `espeak-ng` through Homebrew, and links `kokoro` and `hush` into `~/.local/bin` (set `KOKORO_HOME` / `KOKORO_BIN` to put them elsewhere).
 The first thing you speak downloads the model, about 330 MB, once.
 
-**macOS only.** Playback uses `afplay` and the floating window uses Cocoa. The
-speech engine itself is portable; the plumbing around it is not.
+**macOS only.** Playback and the floating window both use Cocoa. The speech
+engine itself is portable; the plumbing around it is not.
 
 ## Using it
 
@@ -75,11 +75,13 @@ in text, and resumes from the same sentence. Everything spoken is archived to
 
 ## How it works
 
-A **warm daemon** holds the model in memory, so speech starts in ~150 ms instead
-of the ~3.5 s a cold PyTorch import costs. It generates one sentence at a time and
-streams them to the player, so you hear sentence one while sentence four does not
-exist yet. It exits after 15 idle minutes, restarts itself if its code changes,
-and is bounded by a memory ceiling.
+A **warm daemon** holds the model in memory and plays the audio itself, in-
+process, so there is no player to launch per sentence - that used to cost over a
+second of dead air each time. Kokoro's padding is trimmed, sentences that are
+ready are joined into one sound with a short pause, and the next batch starts
+just before the last one ends, so the first sentence plays while later ones are
+still being generated. It exits after 15 idle minutes, restarts itself if its
+code changes, and is bounded by a memory ceiling.
 
 A **UserPromptSubmit hook** carries two pieces of state into each turn, and prints
 nothing at all when neither applies: whether narration is on, and — while audio is
