@@ -1,5 +1,5 @@
 """macOS. The reference backend - this one is tested."""
-import subprocess
+import subprocess, time
 
 AUDIO = "afplay"
 
@@ -76,3 +76,51 @@ def hide_window(root):
     for w in _windows():
         w.setAlphaValue_(0.0)
         w.setIgnoresMouseEvents_(True)
+
+class Sound:
+    """A sound played inside this process. Launching afplay per sentence cost
+    about 1.2 seconds of dead air each time; this starts in ~130 ms and knows
+    its exact playback position. MAIN THREAD ONLY - driven from a background
+    thread NSSound silently does nothing. Keep the run loop turning with pump()."""
+
+    def __init__(self, path):
+        from AppKit import NSSound
+        self._s = NSSound.alloc().initWithContentsOfFile_byReference_(str(path), False)  # load into memory now
+        if self._s is None:
+            raise RuntimeError(f"cannot load sound {path}")
+        self._paused = False
+        self._started = None
+
+    def play(self):
+        self._s.play(); self._started = time.time()
+
+    def pause(self):
+        if not self._paused:
+            self._s.pause(); self._paused = True
+
+    def resume(self):
+        if self._paused:
+            self._s.resume(); self._paused = False
+
+    def stop(self):
+        self._s.stop(); self._paused = False; self._started = None
+
+    def position(self):
+        return float(self._s.currentTime())
+
+    def duration(self):
+        return float(self._s.duration())
+
+    def finished(self):
+        if self._started is None:
+            return True
+        if self._paused or self._s.isPlaying():
+            return False
+        # isPlaying is still False for ~130 ms after play(); that is not the end
+        return time.time() - self._started > 0.5
+
+
+def pump(seconds):
+    """Let Cocoa run for a moment. NSSound only progresses while this turns."""
+    from AppKit import NSRunLoop, NSDate
+    NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(seconds))

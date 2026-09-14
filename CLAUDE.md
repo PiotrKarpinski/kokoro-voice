@@ -30,7 +30,8 @@ plugin from the marketplace: the hook fires twice and every skill appears twice.
 
     bin/kokoro          launcher, resolves symlinks, finds ~/.kokoro/.venv
     bin/speak.py        client: flags, config, flattening, archive
-    bin/speakd.py       warm daemon: model in RAM, sentence streaming, bg queue
+    bin/speakd.py       warm daemon: model in RAM, plays audio itself on its MAIN thread
+                        (player), listener + generator threads, trimmed joined batches
     bin/hud.py          floating transcript window
     bin/normalize.py    ear rules in code: paths, units, dates, times, links
     bin/platforms/      ALL OS-specific code. darwin.py is the tested backend
@@ -69,6 +70,15 @@ gets its own temp KOKORO_HOME and KOKORO_DRY_RUN=1, so it never plays audio and
 never touches your real config.
 
 ## Things that already bit us
+
+- **afplay per sentence cost ~1.2 s of dead air each launch,** plus ~0.6 s of
+  Kokoro padding: pauses near 2 s. The daemon now plays in-process (NSSound),
+  trims padding, joins ready sentences with a 120 ms gap, and starts the next
+  batch 100 ms early. **NSSound only works on the main thread** - driven from a
+  background thread it silently does nothing - and needs the Cocoa run loop
+  pumped. Start-to-start went 2.9 s to 1.1 s. First sound tracks generation
+  speed, which tracks machine load: the same text took 0.8 s or 8.5 s to
+  generate depending on what else was running.
 
 - **Tk's `deiconify` activates the app on macOS.** That made showing the window
   pull users out of a full-screen chat onto another desktop - reported twice.

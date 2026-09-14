@@ -28,3 +28,9 @@ def show_window(root):
 
 def hide_window(root):
     root.withdraw()
+
+class Sound:
+    def __init__(self, path): raise NotImplementedError(_MSG)
+
+def pump(seconds):
+    import time; time.sleep(seconds)

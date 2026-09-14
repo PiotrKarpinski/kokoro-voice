@@ -458,33 +458,34 @@ def player():
             NOW.unlink()
     except (OSError, ValueError):
         pass
-th = threading.Thread(target=player); th.start()
-
 def via_daemon():
+    """Ask the daemon to speak and wait until it has. The daemon plays the audio
+    itself now - trimmed, joined, no player launched per sentence."""
     if a.no_daemon:
         return False
     if not daemon_is_current():
         stop_daemon()                      # stale code, or nothing there
         if not start_daemon():
             return False
-    s = connect(timeout=300)
+    s = connect(timeout=10)
     if not s:
         return False
     try:
+        s.settimeout(None)                 # speaking can outlast any fixed timeout
         f = s.makefile("rw")
-        f.write(json.dumps({"text": t, "voice": a.voice, "speed": a.speed,
-                            "title": TITLE})+"\n"); f.flush()
-        got = False
+        f.write(json.dumps({"text": t, "voice": a.voice, "speed": a.speed, "title": TITLE,
+                            "save": str(pathlib.Path(a.save).resolve()) if a.save else None})+"\n")
+        f.flush()
         for line in f:
             m = json.loads(line)
-            if "wav" in m:
-                tmpdirs.add(os.path.dirname(m["wav"])); parts.append(m["wav"])
-                q.put(m["wav"]); got = True
-            elif m.get("done"):
-                return got
-            elif "error" in m:
-                print(f"daemon error: {m['error']}", file=sys.stderr); return False
-        return got
+            if m.get("done"):
+                if a.save:
+                    print(a.save)
+                return True
+            if "error" in m:
+                print(f"daemon error: {m['error']}", file=sys.stderr)
+                return False
+        return False
     except Exception:
         return False
     finally:
@@ -502,20 +503,22 @@ def in_process():
         p = f"{tmp}/{i:04d}.wav"
         sf.write(p, audio, 24000); parts.append(p); q.put(p)
 
-if not via_daemon():
+spoken_by_daemon = via_daemon()
+if not spoken_by_daemon:                   # fallback: generate and play right here
+    th = threading.Thread(target=player); th.start()
     in_process()
-q.put(None)
-
-if a.save and parts:
-    import numpy as np, soundfile as sf
-    sf.write(a.save, np.concatenate([sf.read(p)[0] for p in parts]), 24000)
-    print(a.save)
+    q.put(None)
+    if a.save and parts:
+        import numpy as np, soundfile as sf
+        sf.write(a.save, np.concatenate([sf.read(p)[0] for p in parts]), 24000)
+        print(a.save)
 
 if not a.replay:
     stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     (ARCHIVE/f"{stamp}.txt").write_text(t + "\n")
 (DATA/"last-spoken.txt").write_text(t + "\n")
 
-th.join()
+if not spoken_by_daemon:
+    th.join()
 for d in tmpdirs:
     shutil.rmtree(d, ignore_errors=True)

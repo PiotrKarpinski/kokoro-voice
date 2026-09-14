@@ -28,6 +28,7 @@ A backend is seven functions:
 | `background_app()` | stop the transcript window stealing focus |
 | `float_window(root)` | keep it above others, on every desktop |
 | `show_window(root)` / `hide_window(root)` | show and hide the window without it taking focus. Optional: the default is Tk's deiconify/withdraw, which is fine where showing a window does not steal focus |
+| `Sound(path)` + `pump(seconds)` | play a sound inside the process with pause, resume, stop, position and duration; `pump` lets the platform event loop run. The daemon calls these from its main thread. The Linux version is a player process paused with signals |
 
 The last two may be no-ops — the window still works without them. An optional
 `on_screen(x, y, w, h)` lets the window recover from an unplugged display;

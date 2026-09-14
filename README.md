@@ -94,7 +94,7 @@ gee dee".
 
 ## The transcript window
 
-Off by default — `kokoro --hud on`. When on, it shows for every spoken line,
+A floating transcript with a small green talking head underneath, whose mouth follows the loudness of the voice. Off by default — `kokoro --hud on`. When on, it shows for every spoken line,
 whether queued with `--bg` or spoken directly, and hides when speech ends. It
 starts itself the next time anything is spoken, restarts when its code changes,
 and snaps back on screen if it was last left on a display that is no longer

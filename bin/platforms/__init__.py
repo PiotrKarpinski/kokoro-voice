@@ -16,10 +16,13 @@ A backend provides:
     on_screen(x,y,w,h)   is a saved window position on a connected display
     show_window(root)    make the window visible without taking focus
     hide_window(root)    make it invisible
+    Sound(path)          a playable sound in this process: play/pause/resume/stop,
+                         position(), duration(), finished()
+    pump(seconds)        let the platform's event loop run while waiting on a Sound
 
 The last three may be trivial; the window still works without them.
 """
-import sys
+import sys, time
 
 def backend():
     if sys.platform == "darwin":
@@ -45,3 +48,5 @@ float_window   = _b.float_window
 on_screen      = getattr(_b, "on_screen", lambda x, y, w, h: True)
 show_window    = getattr(_b, "show_window", lambda root: (root.attributes("-alpha", 1.0), root.deiconify()))
 hide_window    = getattr(_b, "hide_window", lambda root: root.withdraw())
+Sound          = getattr(_b, "Sound", None)
+pump           = getattr(_b, "pump", time.sleep)
