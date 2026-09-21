@@ -32,6 +32,7 @@ NOW       = DATA/".now-playing"   # what is sounding, for the window and "what w
 PAUSE     = DATA/".paused"
 HUSH      = DATA/".hush"
 IDLE_EXIT = 900          # 15 min unused -> exit and give the RAM back
+STALE_PAUSE = float(os.environ.get("KOKORO_STALE_PAUSE", "600"))   # seconds
 RSS_CEIL  = 2600         # MB. Torch grows per request; exit when idle above this and
                          # let the client restart us, rather than grow without bound.
 SPLIT     = r"(?<=[.!?])\s+"
@@ -208,6 +209,7 @@ def play(job, tmp):
                     parts.append(a); pos += len(a)
                 audio = np.concatenate(parts)
                 job.audio.append(audio)
+                os.makedirs(tmp, exist_ok=True)       # survives anything clearing temp files
                 path = os.path.join(tmp, f"{job.created:.6f}-{indices[0]:04d}.wav")
                 sf.write(path, audio, SR)
                 if sound is not None and not sound.finished():
@@ -241,6 +243,13 @@ def handle(conn):
                 platforms.stop_all()                  # an in-process client's player, if any
                 f.write(json.dumps({"drained": True}) + "\n"); f.flush()
                 return
+            try:                                      # a pause nobody resumed for ten minutes
+                if time.time() - PAUSE.stat().st_mtime > STALE_PAUSE:   # is abandoned, not a pause:
+                    STOP_AT[0] = time.time()          # drop what it was holding back,
+                    PAUSE.unlink(missing_ok=True)     # then speak the new request
+                    print("stale pause cleared", flush=True)
+            except OSError:
+                pass
             job = Job(req)
             with ENQUEUE:
                 GENQ.put(job); JOBS.put(job)
@@ -278,7 +287,7 @@ threading.Thread(target=generator, daemon=True).start()
 threading.Thread(target=listen, args=(srv,), daemon=True).start()
 print(f"ready pid={os.getpid()}", flush=True)
 
-tmp = tempfile.mkdtemp(prefix="speak.")
+tmp = tempfile.mkdtemp(prefix="kokoro-daemon.")   # not "speak.": the client sweeps those
 try:
     while True:
         try:
@@ -298,11 +307,14 @@ try:
             print(f"play error: {e}", flush=True)
         finally:
             job.done.set()
-            for name in os.listdir(tmp):
-                try:
-                    os.remove(os.path.join(tmp, name))
-                except OSError:
-                    pass
+            try:
+                for name in os.listdir(tmp):
+                    try:
+                        os.remove(os.path.join(tmp, name))
+                    except OSError:
+                        pass
+            except OSError:
+                pass
             if JOBS.empty():
                 NOW.unlink(missing_ok=True)
             ACTIVE[0] = time.time()

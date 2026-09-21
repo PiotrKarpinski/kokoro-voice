@@ -79,6 +79,16 @@ never touches your real config.
 
 ## Things that already bit us
 
+- **A pause that nobody resumed silenced everything for days.** The player
+  never starts new speech while paused, so 116 requests queued behind one
+  forgotten pause. New speech now clears a pause older than 10 minutes
+  (KOKORO_STALE_PAUSE) and drops what it held back; --status shows a pause.
+- **The client's temp sweep deleted the daemon's working folder.** It removes
+  `speak.*` dirs older than an hour; the daemon kept one for its whole life,
+  so after an idle hour the next job failed and cleanup crashed the daemon.
+  The daemon uses `kokoro-daemon.*`, recreates it if missing, and its
+  cleanup can no longer raise.
+
 - **The window blinked in and out during narration.** It hid the moment nothing
   was speaking, and narrate beats arrive seconds apart. It now lingers
   (KOKORO_HUD_LINGER, default 6 s). Breathing that moved the head a whole text

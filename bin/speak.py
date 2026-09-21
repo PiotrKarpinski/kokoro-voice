@@ -287,6 +287,10 @@ if a.status:
         rss = subprocess.run(["ps","-o","rss=","-p", str(pids("speakd.py")[0])],
               capture_output=True, text=True).stdout.strip()
         print(f"daemon: warm, {fresh}, {int(rss)/1024:.0f} MB resident")
+        if PAUSE.exists():
+            mins = (time.time() - PAUSE.stat().st_mtime) / 60
+            print(f"PAUSED for {mins:.0f} min - kokoro --resume, or --hush to drop it"
+                  + (" (new speech will clear it)" if mins > 10 else ""))
     else:
         print("daemon: not running (next speak starts it, ~4s)")
     if CFG["hud"]:
